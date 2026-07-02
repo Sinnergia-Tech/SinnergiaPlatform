@@ -63,8 +63,15 @@ Assets/                 # material de marca original (fuente de verdad)
 - [x] **Fase 1 — Landing institucional** (pública, una página). Terminada.
 - [~] **Fase 2 — CRUD, usuarios y backoffice.** Pantallas con datos mock terminadas.
       Integración de BD EN CURSO (ver abajo).
-- [ ] **Fase 3 — Directorio público con filtros + match semi-automatizado.**
+- [x] **Fase 3 — Directorio público + match semi-automatizado.** Terminada.
+      Motor de matching (`src/lib/matching.ts`, ver `matching-notes.md`), directorio
+      público `/red` (filtros por URL, top-5 en carrusel + grilla, tarjetas con
+      avatar/score/razones), perfil individual `/red/[id]` con similares, y
+      `solicitarMatchAction` que crea la solicitud con candidatos rankeados.
+      Emails transaccionales (Resend) en `src/lib/email.ts`.
 - [ ] **Fase 4 (futuro) — Comunidad/membresía. Luego, capa de IA.**
+- Pendiente de pulido (post-funcionalidad): subida real de fotos/portfolios (R2/S3),
+  verificar dominio en Resend para mails a externos, y bugs visuales de la landing.
 
 ## Integración de base de datos (implementada)
 

@@ -1,12 +1,37 @@
 import { Container } from "./ui/Container";
 
-const social = [
-  { label: "Instagram", href: "#" },
-  { label: "LinkedIn", href: "#" },
-  { label: "TikTok", href: "#" },
-  { label: "YouTube", href: "#" },
-  { label: "WhatsApp", href: "#" },
+// Redes oficiales de Sinnergia.
+const socials = [
+  { label: "Instagram", href: "https://www.instagram.com/sinnergiastudio/", icon: InstagramIcon },
+  { label: "Facebook", href: "https://www.facebook.com/sinnergiastudio/", icon: FacebookIcon },
+  { label: "LinkedIn", href: "https://www.linkedin.com/company/sinnergia-studio/", icon: LinkedInIcon },
 ];
+
+function InstagramIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.2" cy="6.8" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function FacebookIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M13.5 21v-8h2.2l.33-2.7h-2.53V8.57c0-.78.22-1.3 1.33-1.3H16.2V4.86c-.25-.03-1.1-.11-2.1-.11-2.08 0-3.5 1.27-3.5 3.6v2.01H8.3v2.7h2.3V21h2.9z" />
+    </svg>
+  );
+}
+
+function LinkedInIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M6.94 8.6H4.2V20h2.74V8.6zM5.57 4.2a1.6 1.6 0 100 3.2 1.6 1.6 0 000-3.2zM20 20v-6.3c0-3.02-1.61-4.42-3.76-4.42-1.73 0-2.5.95-2.94 1.62V8.6h-2.74c.04.77 0 11.4 0 11.4h2.74v-6.37c0-.25.02-.5.09-.67.2-.5.66-1.02 1.42-1.02 1 0 1.4.76 1.4 1.88V20H20z" />
+    </svg>
+  );
+}
 
 const nav = [
   { label: "Problema", href: "#problema" },
@@ -77,14 +102,17 @@ export function Footer() {
               </a>
             ))}
           </nav>
-          <nav className="flex flex-wrap gap-x-8 gap-y-3">
-            {social.map((s) => (
+          <nav className="flex flex-wrap gap-3">
+            {socials.map((s) => (
               <a
                 key={s.label}
                 href={s.href}
-                className="link-underline text-sm font-medium text-ink hover:text-ink"
+                target="_blank"
+                rel="noreferrer"
+                aria-label={s.label}
+                className="flex h-10 w-10 items-center justify-center border border-ink/20 text-ink transition-colors hover:bg-ink hover:text-paper"
               >
-                {s.label}
+                <s.icon />
               </a>
             ))}
           </nav>

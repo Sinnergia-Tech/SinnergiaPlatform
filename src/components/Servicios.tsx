@@ -115,7 +115,7 @@ export function Servicios() {
 
               <a
                 href={s.href}
-                className={`group mt-8 inline-flex items-center gap-2 self-start text-sm font-medium uppercase tracking-[0.12em] ${
+                className={`group mt-auto inline-flex items-center gap-2 self-end pt-8 text-sm font-medium uppercase tracking-[0.12em] ${
                   s.featured ? "text-paper" : "text-ink"
                 }`}
               >

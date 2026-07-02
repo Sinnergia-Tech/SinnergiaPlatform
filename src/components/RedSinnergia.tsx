@@ -65,16 +65,13 @@ export function RedSinnergia() {
               ))}
             </ul>
 
-            <button
-              type="button"
-              disabled
-              className="mt-9 w-full cursor-not-allowed bg-ink px-6 py-3.5 text-sm font-medium uppercase tracking-[0.14em] text-paper opacity-90"
+            <a
+              href="/red"
+              className="mt-9 flex w-full items-center justify-center gap-2 bg-ink px-6 py-3.5 text-sm font-medium uppercase tracking-[0.14em] text-paper transition-colors hover:bg-ink/85"
             >
               Buscar perfiles
-            </button>
-            <p className="mt-3 text-center text-xs text-ink/40">
-              El directorio completo llega en la próxima fase.
-            </p>
+              <span>→</span>
+            </a>
           </Reveal>
 
           {/* Perfil de ejemplo */}
@@ -98,7 +95,7 @@ export function RedSinnergia() {
               <Row label="Disponibilidad" value="Inmediata" />
             </div>
 
-            <div className="mt-8 flex items-center gap-4">
+            <div className="mt-8">
               <a
                 href="/diagnostico"
                 className="group inline-flex items-center gap-2 bg-ink px-6 py-3 text-sm font-medium uppercase tracking-[0.12em] text-paper transition-colors hover:bg-ink/85"
@@ -108,7 +105,6 @@ export function RedSinnergia() {
                   →
                 </span>
               </a>
-              <span className="kicker text-ink/30">Perfil de ejemplo</span>
             </div>
           </Reveal>
         </div>

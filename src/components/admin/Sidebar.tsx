@@ -20,8 +20,11 @@ export function Sidebar() {
 
   return (
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-ink/10 bg-paper lg:flex">
-      {/* Brand */}
-      <div className="flex h-[68px] items-center gap-3 border-b border-ink/10 px-6">
+      {/* Brand (link a la landing) */}
+      <Link
+        href="/"
+        className="flex h-[68px] items-center gap-3 border-b border-ink/10 px-6 transition-colors hover:bg-smoke"
+      >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/brand/isotipo-negro.png"
@@ -36,7 +39,7 @@ export function Sidebar() {
             Backoffice
           </div>
         </div>
-      </div>
+      </Link>
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-6">
@@ -68,6 +71,12 @@ export function Sidebar() {
 
       {/* User */}
       <div className="border-t border-ink/10 p-4">
+        <Link
+          href="/"
+          className="mb-3 flex items-center gap-2 px-2 text-xs text-ink/50 hover:text-ink"
+        >
+          ← Ver sitio público
+        </Link>
         <div className="flex items-center gap-3 rounded-sm px-2 py-2">
           <div className="flex h-9 w-9 items-center justify-center bg-ink text-xs font-semibold text-paper">
             SC

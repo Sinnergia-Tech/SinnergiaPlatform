@@ -20,6 +20,40 @@ export function getProfessional(id: string) {
   return prisma.professional.findUnique({ where: { id } });
 }
 
+/** Perfiles aprobados (visibles en el directorio público). */
+export function listApprovedProfessionals() {
+  return prisma.professional.findMany({
+    where: { estado: "aprobado" },
+    orderBy: [{ destacado: "desc" }, { createdAt: "desc" }],
+  });
+}
+
+export function getApprovedProfessional(id: string) {
+  return prisma.professional.findFirst({ where: { id, estado: "aprobado" } });
+}
+
+/** Crea una solicitud de match con sus candidatos ya rankeados. */
+export function createMatchRequest(input: {
+  companyId: string;
+  contexto: string;
+  candidatos: { professionalId: string; puntaje: number; seleccionado: boolean }[];
+}) {
+  return prisma.matchRequest.create({
+    data: {
+      companyId: input.companyId,
+      contexto: input.contexto,
+      estado: "solicitado",
+      candidatos: {
+        create: input.candidatos.map((c) => ({
+          professionalId: c.professionalId,
+          puntaje: c.puntaje,
+          seleccionado: c.seleccionado,
+        })),
+      },
+    },
+  });
+}
+
 export function setProfessionalEstado(id: string, estado: EstadoProfesional) {
   return prisma.professional.update({ where: { id }, data: { estado } });
 }

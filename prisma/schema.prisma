@@ -75,10 +75,14 @@ model Professional {
   // Valores de catálogo (flexibles, editables): se validan en la app
   roles          String[]
   rubros         String[]
+  skills         String[] @default([])
+  tecnologias    String[] @default([])
+  idiomas        String[] @default([])
   experiencia    String
   honorarios     String
   modalidad      String
   disponibilidad String
+  ubicacion      String?
   // Moderación
   estado         EstadoProfesional @default(pendiente)
   destacado      Boolean           @default(false)

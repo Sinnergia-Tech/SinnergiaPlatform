@@ -1,0 +1,128 @@
+import { Resend } from "resend";
+
+/**
+ * Envío de emails transaccionales (Resend).
+ *
+ * Es resiliente: si falla el envío (o falta la API key) NO rompe el flujo —
+ * loguea y sigue. Así un problema de email nunca tira abajo un formulario.
+ *
+ * Nota: con el remitente de prueba `onboarding@resend.dev` Resend solo entrega
+ * al dueño de la cuenta. Para enviar a usuarios reales, verificar un dominio y
+ * setear EMAIL_FROM (ej. "Sinnergia <hola@sinnergia.studio>").
+ */
+
+const apiKey = process.env.RESEND_API_KEY;
+const resend = apiKey ? new Resend(apiKey) : null;
+
+const FROM = process.env.EMAIL_FROM ?? "Sinnergia Studio <onboarding@resend.dev>";
+const ADMIN = process.env.ADMIN_EMAIL ?? "sinnergiasistemas@gmail.com";
+
+async function send(opts: { to: string; subject: string; html: string }) {
+  if (!resend) {
+    console.warn("[email] RESEND_API_KEY sin configurar — se omite el envío");
+    return;
+  }
+  try {
+    await resend.emails.send({ from: FROM, ...opts });
+  } catch (e) {
+    console.error("[email] error al enviar:", e);
+  }
+}
+
+/** Template monocromático simple, acorde a la marca. */
+function tpl(heading: string, body: string) {
+  return `
+  <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#1b1712;">
+    <div style="background:#000;color:#fff;padding:28px 32px;">
+      <div style="font-size:13px;letter-spacing:3px;text-transform:uppercase;">Sinnergia Studio</div>
+    </div>
+    <div style="padding:32px;border:1px solid #e4ddd3;border-top:none;">
+      <h1 style="font-size:20px;font-weight:600;margin:0 0 16px;">${heading}</h1>
+      <div style="font-size:14px;line-height:1.6;color:#4a4038;">${body}</div>
+    </div>
+    <div style="padding:16px 32px;font-size:11px;color:#9a9a97;">
+      Definamos el QUÉ. Nosotros te explicamos el CÓMO.
+    </div>
+  </div>`;
+}
+
+// --- Aplicación de profesional ----------------------------------------------
+
+export async function notifyNewApplication(p: {
+  nombre: string;
+  titular: string;
+  email: string;
+}) {
+  await send({
+    to: ADMIN,
+    subject: `Nueva aplicación a la Red: ${p.nombre}`,
+    html: tpl(
+      "Nueva aplicación a la Red",
+      `<p><strong>${p.nombre}</strong> — ${p.titular}<br>${p.email}</p>
+       <p>Entrá al backoffice para revisar y aprobar el perfil.</p>`
+    ),
+  });
+}
+
+export async function sendApplicationConfirmation(p: {
+  nombre: string;
+  email: string;
+}) {
+  await send({
+    to: p.email,
+    subject: "Recibimos tu aplicación a la Red Sinnergia",
+    html: tpl(
+      `¡Gracias, ${p.nombre.split(" ")[0]}!`,
+      `<p>Recibimos tu aplicación a la Red Sinnergia. Vamos a revisar tu perfil y te
+       escribimos. La curaduría es manual, así que puede tomar unos días.</p>`
+    ),
+  });
+}
+
+// --- Diagnóstico de empresa -------------------------------------------------
+
+export async function notifyNewDiagnosis(c: {
+  nombre: string;
+  email: string;
+  rubro: string;
+}) {
+  await send({
+    to: ADMIN,
+    subject: `Nuevo diagnóstico: ${c.nombre}`,
+    html: tpl(
+      "Nuevo diagnóstico recibido",
+      `<p><strong>${c.nombre}</strong> — ${c.rubro}<br>${c.email}</p>
+       <p>Revisalo en el backoffice y coordiná la primera entrevista.</p>`
+    ),
+  });
+}
+
+export async function sendDiagnosisConfirmation(c: {
+  nombre: string;
+  email: string;
+}) {
+  await send({
+    to: c.email,
+    subject: "Recibimos tu diagnóstico — Sinnergia",
+    html: tpl(
+      "Recibimos tu diagnóstico",
+      `<p>Gracias por confiar en Sinnergia. Vamos a leerlo con atención y coordinar la
+       primera entrevista para definir el QUÉ juntos.</p>`
+    ),
+  });
+}
+
+// --- Moderación --------------------------------------------------------------
+
+export async function sendApprovalEmail(p: { nombre: string; email: string }) {
+  await send({
+    to: p.email,
+    subject: "Tu perfil fue aprobado — Red Sinnergia",
+    html: tpl(
+      `¡Bienvenido/a a la Red, ${p.nombre.split(" ")[0]}!`,
+      `<p>Tu perfil fue aprobado y ya está publicado en el directorio de Sinnergia.
+       Cuando una empresa busque un perfil como el tuyo, vas a aparecer entre los
+       candidatos.</p>`
+    ),
+  });
+}

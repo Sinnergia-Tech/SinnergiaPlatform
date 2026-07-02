@@ -7,14 +7,6 @@ export function Hero() {
       id="top"
       className="relative flex min-h-[100svh] flex-col justify-center overflow-hidden bg-ink text-paper"
     >
-      {/* Isotipo gigante de fondo, muy sutil */}
-      <img
-        src="/brand/logo-blanco.png"
-        alt=""
-        aria-hidden
-        className="pointer-events-none absolute -right-24 top-1/2 hidden w-[46rem] max-w-none -translate-y-1/2 opacity-[0.04] md:block"
-      />
-
       <Container className="relative z-10 pt-28 pb-16">
         <p
           className="kicker fade-up text-paper/50"
@@ -62,13 +54,6 @@ export function Hero() {
         </div>
       </Container>
 
-      {/* Indicador de scroll */}
-      <div className="absolute inset-x-0 bottom-8 z-10 flex justify-center">
-        <div className="flex flex-col items-center gap-2 text-paper/40">
-          <span className="text-[0.65rem] uppercase tracking-[0.25em]">Scroll</span>
-          <span className="h-10 w-px animate-pulse bg-paper/30" />
-        </div>
-      </div>
     </section>
   );
 }

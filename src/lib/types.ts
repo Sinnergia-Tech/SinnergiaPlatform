@@ -50,10 +50,14 @@ export interface Professional {
   descripcion: string;
   roles: string[]; // ids/nombres de catálogo de roles
   rubros: string[]; // rubros en los que trabaja
-  experiencia: Experiencia;
+  skills: string[]; // habilidades específicas
+  tecnologias: string[]; // herramientas / stack
+  idiomas: string[]; // idiomas
+  experiencia: Experiencia; // seniority
   honorarios: Presupuesto;
   modalidad: Modalidad;
   disponibilidad: Disponibilidad;
+  ubicacion?: string; // ciudad / país (para presencial/híbrido)
   // Moderación
   estado: EstadoProfesional;
   destacado: boolean;

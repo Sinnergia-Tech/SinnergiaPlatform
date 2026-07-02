@@ -45,19 +45,17 @@ export function ComoFunciona() {
             <Reveal
               key={s.n}
               delay={i * 90}
-              className="group relative flex min-h-[220px] flex-col justify-between bg-ink p-7 transition-colors duration-500 hover:bg-paper hover:text-ink"
+              className="group relative flex min-h-[240px] flex-col bg-ink p-7 transition-colors duration-500 hover:bg-paper hover:text-ink"
             >
               <span className="text-5xl font-extralight text-paper/30 transition-colors duration-500 group-hover:text-ink/25">
                 {s.n}
               </span>
-              <div>
-                <h3 className="text-xl font-semibold uppercase tracking-[0.04em]">
-                  {s.title}
-                </h3>
-                <p className="mt-3 text-sm leading-relaxed text-paper/55 transition-colors duration-500 group-hover:text-ink/60">
-                  {s.desc}
-                </p>
-              </div>
+              <h3 className="mt-8 text-xl font-semibold uppercase tracking-[0.04em]">
+                {s.title}
+              </h3>
+              <p className="mt-3 text-sm leading-relaxed text-paper/55 transition-colors duration-500 group-hover:text-ink/60">
+                {s.desc}
+              </p>
             </Reveal>
           ))}
         </div>

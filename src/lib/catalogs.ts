@@ -36,6 +36,48 @@ export const RUBROS: string[] = [
   "Retail",
 ];
 
+export const SKILLS: string[] = [
+  "Estrategia de marca",
+  "Dirección de arte",
+  "Copywriting",
+  "Performance / Ads",
+  "SEO",
+  "Email marketing",
+  "Edición de video",
+  "Motion graphics",
+  "Fotografía",
+  "Gestión de comunidades",
+  "Analítica de datos",
+  "Automatización",
+  "UX/UI",
+  "Desarrollo web",
+  "Ecommerce management",
+  "Producción audiovisual",
+];
+
+export const TECNOLOGIAS: string[] = [
+  "Meta Ads",
+  "Google Ads",
+  "Shopify",
+  "WordPress",
+  "Tienda Nube",
+  "Figma",
+  "Adobe Premiere",
+  "After Effects",
+  "Photoshop",
+  "Illustrator",
+  "Next.js",
+  "React",
+  "HubSpot",
+  "Make",
+  "n8n",
+  "Google Analytics",
+  "Notion",
+  "Canva",
+];
+
+export const IDIOMAS: string[] = ["Español", "Inglés", "Portugués", "Italiano"];
+
 export const EXPERIENCIAS: Experiencia[] = ["Junior", "Semi Senior", "Senior"];
 
 export const MODALIDADES: Modalidad[] = ["Remoto", "Presencial", "Híbrido"];

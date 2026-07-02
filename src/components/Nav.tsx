@@ -2,16 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { Container } from "./ui/Container";
+import { logoutAction } from "@/lib/auth-actions";
 
 const links = [
   { label: "Problema", href: "#problema" },
   { label: "Cómo funciona", href: "#como-funciona" },
   { label: "Servicios", href: "#servicios" },
-  { label: "Red", href: "#red" },
+  { label: "Red", href: "/red" },
   { label: "Portfolio", href: "#portfolio" },
 ];
 
-export function Nav() {
+export function Nav({
+  account,
+}: {
+  account?: { nombre: string; href: string } | null;
+}) {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -51,7 +56,7 @@ export function Nav() {
         </a>
 
         {/* Desktop links */}
-        <nav className="hidden items-center gap-8 md:flex">
+        <nav className="hidden items-center gap-6 lg:flex xl:gap-8">
           {links.map((l) => (
             <a
               key={l.href}
@@ -63,14 +68,35 @@ export function Nav() {
               {l.label}
             </a>
           ))}
-          <a
-            href="/login"
-            className={`link-underline text-sm transition-colors duration-500 ${
-              dark ? "text-ink/80 hover:text-ink" : "text-paper/85 hover:text-paper"
-            }`}
-          >
-            Ingresar
-          </a>
+          {account ? (
+            <>
+              <a
+                href={account.href}
+                className={`link-underline text-sm transition-colors duration-500 ${
+                  dark ? "text-ink/80 hover:text-ink" : "text-paper/85 hover:text-paper"
+                }`}
+              >
+                Mi panel
+              </a>
+              <button
+                onClick={() => logoutAction()}
+                className={`text-sm transition-colors duration-500 ${
+                  dark ? "text-ink/50 hover:text-ink" : "text-paper/60 hover:text-paper"
+                }`}
+              >
+                Salir
+              </button>
+            </>
+          ) : (
+            <a
+              href="/login"
+              className={`link-underline text-sm transition-colors duration-500 ${
+                dark ? "text-ink/80 hover:text-ink" : "text-paper/85 hover:text-paper"
+              }`}
+            >
+              Ingresar
+            </a>
+          )}
           <a
             href="/diagnostico"
             className={`px-5 py-2.5 text-xs font-medium uppercase tracking-[0.14em] transition-all duration-300 ${
@@ -86,7 +112,7 @@ export function Nav() {
         {/* Mobile toggle */}
         <button
           onClick={() => setOpen((v) => !v)}
-          className="flex h-10 w-10 items-center justify-center md:hidden"
+          className="flex h-10 w-10 items-center justify-center lg:hidden"
           aria-label="Menú"
         >
           <div className="space-y-1.5">
@@ -111,7 +137,7 @@ export function Nav() {
 
       {/* Mobile menu */}
       {open && (
-        <div className="border-t border-ink/10 bg-paper md:hidden">
+        <div className="border-t border-ink/10 bg-paper lg:hidden">
           <Container className="flex flex-col py-4">
             {links.map((l) => (
               <a
@@ -123,13 +149,31 @@ export function Nav() {
                 {l.label}
               </a>
             ))}
-            <a
-              href="/login"
-              onClick={() => setOpen(false)}
-              className="border-b border-ink/5 py-3 text-sm text-ink/80"
-            >
-              Ingresar
-            </a>
+            {account ? (
+              <>
+                <a
+                  href={account.href}
+                  onClick={() => setOpen(false)}
+                  className="border-b border-ink/5 py-3 text-sm text-ink/80"
+                >
+                  Mi panel
+                </a>
+                <button
+                  onClick={() => logoutAction()}
+                  className="border-b border-ink/5 py-3 text-left text-sm text-ink/50"
+                >
+                  Salir
+                </button>
+              </>
+            ) : (
+              <a
+                href="/login"
+                onClick={() => setOpen(false)}
+                className="border-b border-ink/5 py-3 text-sm text-ink/80"
+              >
+                Ingresar
+              </a>
+            )}
             <a
               href="/diagnostico"
               onClick={() => setOpen(false)}
