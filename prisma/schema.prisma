@@ -1,0 +1,157 @@
+// Esquema de datos de Sinnergia Platform.
+// Deriva de src/lib/types.ts y src/lib/schema-notes.md.
+// Base: PostgreSQL (Supabase/Neon). ORM: Prisma.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// --- Enumeraciones estables (controladas por código) ------------------------
+
+enum UserRole {
+  freelancer
+  empresa
+  admin
+}
+
+enum EstadoProfesional {
+  pendiente
+  aprobado
+  rechazado
+  oculto
+}
+
+enum EstadoLead {
+  nuevo
+  en_conversacion
+  propuesta_enviada
+  cerrado_ganado
+  cerrado_perdido
+}
+
+enum EstadoMatch {
+  solicitado
+  en_gestion
+  cerrado
+  descartado
+}
+
+// --- Usuarios (auth) --------------------------------------------------------
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  nombre       String
+  role         UserRole
+  createdAt    DateTime @default(now())
+
+  // Vínculo con la entidad de dominio según el rol
+  professional   Professional? @relation(fields: [professionalId], references: [id])
+  professionalId String?       @unique
+  company        Company?      @relation(fields: [companyId], references: [id])
+  companyId      String?       @unique
+}
+
+// --- Dominio ----------------------------------------------------------------
+
+model Professional {
+  id             String            @id @default(cuid())
+  nombre         String
+  email          String
+  whatsapp       String?
+  linkedin       String?
+  instagram      String?
+  portfolioUrl   String?
+  fotoUrl        String?
+  titular        String
+  descripcion    String
+  // Valores de catálogo (flexibles, editables): se validan en la app
+  roles          String[]
+  rubros         String[]
+  experiencia    String
+  honorarios     String
+  modalidad      String
+  disponibilidad String
+  // Moderación
+  estado         EstadoProfesional @default(pendiente)
+  destacado      Boolean           @default(false)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  user       User?
+  candidatos MatchCandidate[]
+
+  @@index([estado])
+}
+
+model Company {
+  id        String   @id @default(cuid())
+  nombre    String
+  contacto  String
+  email     String
+  telefono  String?
+  rubro     String
+  tamano    String?
+  sitioWeb  String?
+  origen    String?
+  createdAt DateTime @default(now())
+
+  user      User?
+  diagnoses Diagnosis[]
+  matches   MatchRequest[]
+}
+
+model Diagnosis {
+  id                String     @id @default(cuid())
+  company           Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId         String
+  rubro             String
+  facturacion       String?
+  objetivos         String
+  presupuesto       String
+  equipoActual      String?
+  problemaPrincipal String
+  respuestasExtra   Json?
+  estadoLead        EstadoLead @default(nuevo)
+  notas             String?
+  createdAt         DateTime   @default(now())
+
+  matches MatchRequest[]
+
+  @@index([estadoLead])
+}
+
+model MatchRequest {
+  id          String      @id @default(cuid())
+  company     Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId   String
+  diagnosis   Diagnosis?  @relation(fields: [diagnosisId], references: [id])
+  diagnosisId String?
+  contexto    String
+  estado      EstadoMatch @default(solicitado)
+  resultado   String?
+  createdAt   DateTime    @default(now())
+
+  candidatos MatchCandidate[]
+
+  @@index([estado])
+}
+
+model MatchCandidate {
+  id             String       @id @default(cuid())
+  matchRequest   MatchRequest @relation(fields: [matchRequestId], references: [id], onDelete: Cascade)
+  matchRequestId String
+  professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  professionalId String
+  puntaje        Int          @default(0)
+  seleccionado   Boolean      @default(false)
+
+  @@unique([matchRequestId, professionalId])
+}

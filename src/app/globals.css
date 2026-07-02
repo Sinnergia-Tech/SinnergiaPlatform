@@ -1,0 +1,134 @@
+@import "tailwindcss";
+
+/* ============================================================
+   SINNERGIA STUDIO — Design tokens
+   Paleta estricta: negro #000000 / blanco #FFFFFF (manual de marca)
+   Tipografía: Jost (geométrica, sustituto web de Century Gothic)
+   ============================================================ */
+@theme {
+  --color-ink: #000000;
+  --color-paper: #ffffff;
+  --color-smoke: #f4f4f2;
+  --color-ash: #e6e6e3;
+  --color-graphite: #6b6b6b;
+  --color-mute: #9a9a97;
+
+  --font-sans: "Jost", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, Helvetica, Arial, sans-serif;
+
+  --tracking-kicker: 0.28em;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: var(--color-ink);
+    color: var(--color-paper);
+  }
+
+  /* Section reveal animation.
+     Por defecto el contenido es VISIBLE (resiliente sin JS / SEO).
+     El estado inicial oculto sólo se aplica cuando JS marca la página como lista. */
+  .js-ready .reveal-item {
+    opacity: 0;
+    transform: translateY(18px);
+    will-change: opacity, transform;
+  }
+  .js-ready .reveal-item.is-visible {
+    animation: reveal 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .js-ready .reveal-item,
+    .js-ready .reveal-item.is-visible {
+      opacity: 1;
+      transform: none;
+      animation: none;
+    }
+  }
+
+  @keyframes reveal {
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* Entrada del hero: animación pura CSS al cargar (no depende de JS).
+     El estado final es visible, por lo que es seguro sin animación. */
+  @keyframes fadeUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  .fade-up {
+    animation: fadeUp 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .fade-up {
+      animation: none;
+    }
+  }
+}
+
+@layer components {
+  /* Utility: uppercase kicker label */
+  .kicker {
+    font-size: 0.72rem;
+    letter-spacing: var(--tracking-kicker);
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+
+  /* Marquee for the manifesto / ticker */
+  .marquee {
+    animation: marquee 30s linear infinite;
+  }
+
+  @keyframes marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  /* Animated underline link */
+  .link-underline {
+    position: relative;
+  }
+  .link-underline::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -2px;
+    height: 1px;
+    width: 100%;
+    background: currentColor;
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .link-underline:hover::after {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+}
