@@ -4,14 +4,6 @@ import { useEffect, useState } from "react";
 import { Container } from "./ui/Container";
 import { logoutAction } from "@/lib/auth-actions";
 
-const links = [
-  { label: "Problema", href: "#problema" },
-  { label: "Cómo funciona", href: "#como-funciona" },
-  { label: "Servicios", href: "#servicios" },
-  { label: "Red", href: "/red" },
-  { label: "Portfolio", href: "#portfolio" },
-];
-
 export function Nav({
   account,
 }: {
@@ -19,6 +11,16 @@ export function Nav({
 }) {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+
+  // "Red" requiere cuenta — no tiene sentido mostrarlo a un visitante sin
+  // sesión (hoy redirige a /login). Si vuelve logueado, aparece.
+  const links = [
+    { label: "Problema", href: "#problema" },
+    { label: "Cómo funciona", href: "#como-funciona" },
+    { label: "Servicios", href: "#servicios" },
+    ...(account ? [{ label: "Red", href: "/red" }] : []),
+    { label: "Portfolio", href: "#portfolio" },
+  ];
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);

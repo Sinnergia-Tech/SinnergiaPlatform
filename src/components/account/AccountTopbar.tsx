@@ -3,22 +3,28 @@
 import { Container } from "../ui/Container";
 import { logoutAction } from "@/lib/auth-actions";
 
-const rolLabel: Record<string, string> = {
-  freelancer: "Freelancer",
-  empresa: "Empresa",
-  admin: "Admin",
-};
+function initials(nombre: string) {
+  return nombre
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0] ?? "")
+    .join("")
+    .toUpperCase();
+}
 
 // Navegación de la plataforma (no anclas de marketing de la landing).
 const links = [
   { label: "Mi cuenta", href: "/cuenta" },
   { label: "Red", href: "/red" },
+  { label: "Mis contactos", href: "/cuenta/contactos" },
 ];
 
 export function AccountTopbar({
   user,
+  unreadContacts = 0,
 }: {
   user: { nombre: string; rol: string };
+  unreadContacts?: number;
 }) {
   const logout = () => {
     logoutAction();
@@ -45,9 +51,14 @@ export function AccountTopbar({
             <a
               key={l.href}
               href={l.href}
-              className="link-underline text-sm text-ink/70 hover:text-ink"
+              className="link-underline relative text-sm text-ink/70 hover:text-ink"
             >
               {l.label}
+              {l.href === "/cuenta/contactos" && unreadContacts > 0 && (
+                <span className="absolute -right-3 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-ink px-1 text-[0.6rem] font-semibold text-paper">
+                  {unreadContacts}
+                </span>
+              )}
             </a>
           ))}
         </nav>
@@ -55,12 +66,9 @@ export function AccountTopbar({
         <div className="flex shrink-0 items-center gap-4">
           <div className="hidden text-right sm:block">
             <div className="text-sm font-medium leading-tight">{user.nombre}</div>
-            <div className="text-[0.7rem] uppercase tracking-[0.14em] text-ink/40">
-              {rolLabel[user.rol]}
-            </div>
           </div>
           <div className="flex h-9 w-9 items-center justify-center bg-ink text-xs font-semibold text-paper">
-            {user.nombre.slice(0, 2).toUpperCase()}
+            {initials(user.nombre)}
           </div>
           <button
             onClick={logout}

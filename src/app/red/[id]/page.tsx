@@ -1,13 +1,18 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { SiteTopbar } from "@/components/SiteTopbar";
+import { notFound, redirect } from "next/navigation";
+import { auth } from "@/auth";
+import { AccountTopbar } from "@/components/account/AccountTopbar";
 import { Container } from "@/components/ui/Container";
 import { Avatar } from "@/components/directory/Avatar";
-import { SolicitarMatchButton } from "@/components/directory/SolicitarMatchButton";
+import { ContactarFreelancerButton } from "@/components/directory/ContactarFreelancerButton";
 import { ProfileCard } from "@/components/directory/ProfileCard";
+import { Placeholder } from "@/components/ui/Placeholder";
 import {
   getApprovedProfessional,
   listApprovedProfessionals,
+  findActiveContact,
+  listContactsForCompany,
+  countUnreadContacts,
 } from "@/lib/data";
 import { rankProfessionals, queryFromProfessional } from "@/lib/matching";
 
@@ -19,19 +24,38 @@ export default async function PerfilPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const p = await getApprovedProfessional(id);
+  const [p, session] = await Promise.all([getApprovedProfessional(id), auth()]);
+  if (!session?.user) redirect("/login");
   if (!p) notFound();
+  const canContact = session.user.role === "empresa";
+  const companyId = session.user.companyId;
 
-  const approved = await listApprovedProfessionals();
+  const [approved, activeContact, companyContacts, unreadContacts] = await Promise.all([
+    listApprovedProfessionals(),
+    canContact && companyId ? findActiveContact(companyId, id) : null,
+    canContact && companyId ? listContactsForCompany(companyId) : [],
+    session.user.role === "freelancer" && session.user.professionalId
+      ? countUnreadContacts(session.user.professionalId)
+      : 0,
+  ]);
   const { top: similares } = rankProfessionals(
     approved.filter((x) => x.id !== id),
     queryFromProfessional(p),
     3
   );
+  const contactStatusByProfessional = new Map<string, string>();
+  for (const c of companyContacts) {
+    if (c.status === "pending" || c.status === "accepted") {
+      contactStatusByProfessional.set(c.professionalId, c.status);
+    }
+  }
 
   return (
     <main className="min-h-screen bg-smoke">
-      <SiteTopbar />
+      <AccountTopbar
+        user={{ nombre: session.user.name ?? "", rol: session.user.role }}
+        unreadContacts={unreadContacts}
+      />
 
       <Container className="max-w-4xl py-10">
         <Link href="/red" className="mb-6 inline-block text-sm text-ink/50 hover:text-ink">
@@ -66,9 +90,14 @@ export default async function PerfilPage({
                 </div>
               </div>
             </div>
-            <div className="shrink-0">
-              <SolicitarMatchButton professionalId={p.id} />
-            </div>
+            {canContact && (
+              <div className="shrink-0">
+                <ContactarFreelancerButton
+                  professionalId={p.id}
+                  initialStatus={activeContact?.status}
+                />
+              </div>
+            )}
           </div>
 
           <p className="mt-7 max-w-2xl text-ink/75">{p.descripcion}</p>
@@ -94,6 +123,43 @@ export default async function PerfilPage({
               {p.instagram && <span className="text-ink/60">{p.instagram}</span>}
             </div>
           )}
+
+          {/* Portfolio */}
+          {p.portfolio.length > 0 && (
+            <div className="mt-8 border-t border-ink/10 pt-7">
+              <h2 className="mb-5 text-sm font-medium uppercase tracking-[0.1em] text-ink/50">
+                Portfolio
+              </h2>
+              <div className="grid gap-6 sm:grid-cols-2">
+                {p.portfolio.map((item) => (
+                  <article key={item.id}>
+                    {item.imagenUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={item.imagenUrl}
+                        alt={item.titulo}
+                        className="aspect-[4/3] w-full border border-ink/10 object-cover"
+                      />
+                    ) : (
+                      <Placeholder label={item.titulo} ratio="4 / 3" />
+                    )}
+                    <h3 className="mt-3 font-medium">{item.titulo}</h3>
+                    <p className="mt-1 text-sm text-ink/60">{item.descripcion}</p>
+                    {item.enlace && (
+                      <a
+                        href={item.enlace}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="link-underline mt-1 inline-block text-sm text-ink"
+                      >
+                        Ver proyecto →
+                      </a>
+                    )}
+                  </article>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Perfiles similares */}
@@ -102,7 +168,12 @@ export default async function PerfilPage({
             <h2 className="mb-4 text-lg font-semibold">Perfiles similares</h2>
             <div className="grid gap-4 sm:grid-cols-3">
               {similares.map((sc) => (
-                <ProfileCard key={sc.professional.id} p={sc.professional} />
+                <ProfileCard
+                  key={sc.professional.id}
+                  p={sc.professional}
+                  canContact={canContact}
+                  contactStatus={contactStatusByProfessional.get(sc.professional.id)}
+                />
               ))}
             </div>
           </div>

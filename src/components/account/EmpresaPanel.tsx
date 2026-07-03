@@ -1,4 +1,5 @@
 import { Badge, estadoVariant } from "@/components/admin/ui";
+import { CompanyProfileForm } from "@/components/account/CompanyProfileForm";
 import { ESTADO_LEAD_LABEL, ESTADO_MATCH_LABEL } from "@/lib/catalogs";
 import type { EstadoLead, EstadoMatch } from "@/lib/types";
 
@@ -21,6 +22,11 @@ type Match = {
 type Company = {
   nombre: string;
   rubro: string;
+  descripcion: string | null;
+  logoUrl: string | null;
+  linkedin: string | null;
+  instagram: string | null;
+  ubicacion: string | null;
   diagnoses: Diag[];
   matches: Match[];
 };
@@ -38,12 +44,22 @@ export function EmpresaPanel({ company }: { company: Company | null }) {
         </div>
         <a
           href="/diagnostico"
-          className="group inline-flex items-center gap-2 bg-ink px-6 py-3 text-sm font-medium uppercase tracking-[0.12em] text-paper transition-colors hover:bg-ink/85"
+          className="inline-flex items-center bg-ink px-6 py-3 text-sm font-medium uppercase tracking-[0.12em] text-paper transition-colors hover:bg-ink/85"
         >
           Nuevo diagnóstico
-          <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
         </a>
       </div>
+
+      <CompanyProfileForm
+        nombre={company.nombre}
+        initial={{
+          descripcion: company.descripcion,
+          logoUrl: company.logoUrl,
+          linkedin: company.linkedin,
+          instagram: company.instagram,
+          ubicacion: company.ubicacion,
+        }}
+      />
 
       <section className="border border-ink/10 bg-paper">
         <div className="border-b border-ink/10 px-6 py-4">

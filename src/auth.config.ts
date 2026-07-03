@@ -17,7 +17,11 @@ export const authConfig = {
   pages: {
     signIn: "/login",
   },
-  session: { strategy: "jwt" },
+  // Sesión JWT pura (sin adapter/DB): no hay revocación dura de sesiones
+  // activas al resetear contraseña o desactivar una cuenta — expiran solas
+  // a los 30 días. El middleware necesita quedar edge-safe (sin Prisma), así
+  // que una revocación real requeriría migrar a sesiones en DB más adelante.
+  session: { strategy: "jwt", maxAge: 60 * 60 * 24 * 30 },
   callbacks: {
     // Persistir datos del usuario en el token al iniciar sesión
     jwt({ token, user }) {
@@ -49,9 +53,11 @@ export const authConfig = {
 
       const isAdmin = path.startsWith("/admin");
       const isCuenta = path.startsWith("/cuenta");
+      const isRed = path.startsWith("/red");
 
       if (isAdmin) return user?.role === "admin";
       if (isCuenta) return !!user; // freelancer o empresa logueados
+      if (isRed) return !!user; // cualquier rol logueado navega la red
       return true;
     },
   },

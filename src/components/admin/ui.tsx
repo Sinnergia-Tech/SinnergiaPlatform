@@ -12,10 +12,15 @@ const badgeStyles: Record<BadgeVariant, string> = {
 
 /** Mapea estados del dominio a una variante visual (sin usar color). */
 export function estadoVariant(estado: string): BadgeVariant {
-  if (["aprobado", "cerrado_ganado", "cerrado"].includes(estado)) return "solid";
-  if (["rechazado", "oculto", "descartado", "cerrado_perdido"].includes(estado))
+  if (["aprobado", "cerrado_ganado", "cerrado", "accepted"].includes(estado))
+    return "solid";
+  if (
+    ["rechazado", "oculto", "descartado", "cerrado_perdido", "rejected", "cancelled", "archived"].includes(
+      estado
+    )
+  )
     return "muted";
-  return "outline"; // pendiente, nuevo, solicitado, en_gestion, etc.
+  return "outline"; // pendiente, nuevo, solicitado, en_gestion, pending, etc.
 }
 
 export function Badge({

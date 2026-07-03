@@ -17,6 +17,16 @@ const resend = apiKey ? new Resend(apiKey) : null;
 const FROM = process.env.EMAIL_FROM ?? "Sinnergia Studio <onboarding@resend.dev>";
 const ADMIN = process.env.ADMIN_EMAIL ?? "sinnergiasistemas@gmail.com";
 
+/** Escapa HTML antes de interpolar datos que vienen de formularios públicos. */
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 async function send(opts: { to: string; subject: string; html: string }) {
   if (!resend) {
     console.warn("[email] RESEND_API_KEY sin configurar — se omite el envío");
@@ -53,12 +63,15 @@ export async function notifyNewApplication(p: {
   titular: string;
   email: string;
 }) {
+  const nombre = escapeHtml(p.nombre);
+  const titular = escapeHtml(p.titular);
+  const email = escapeHtml(p.email);
   await send({
     to: ADMIN,
     subject: `Nueva aplicación a la Red: ${p.nombre}`,
     html: tpl(
       "Nueva aplicación a la Red",
-      `<p><strong>${p.nombre}</strong> — ${p.titular}<br>${p.email}</p>
+      `<p><strong>${nombre}</strong> — ${titular}<br>${email}</p>
        <p>Entrá al backoffice para revisar y aprobar el perfil.</p>`
     ),
   });
@@ -72,7 +85,7 @@ export async function sendApplicationConfirmation(p: {
     to: p.email,
     subject: "Recibimos tu aplicación a la Red Sinnergia",
     html: tpl(
-      `¡Gracias, ${p.nombre.split(" ")[0]}!`,
+      `¡Gracias, ${escapeHtml(p.nombre.split(" ")[0])}!`,
       `<p>Recibimos tu aplicación a la Red Sinnergia. Vamos a revisar tu perfil y te
        escribimos. La curaduría es manual, así que puede tomar unos días.</p>`
     ),
@@ -86,12 +99,15 @@ export async function notifyNewDiagnosis(c: {
   email: string;
   rubro: string;
 }) {
+  const nombre = escapeHtml(c.nombre);
+  const rubro = escapeHtml(c.rubro);
+  const email = escapeHtml(c.email);
   await send({
     to: ADMIN,
     subject: `Nuevo diagnóstico: ${c.nombre}`,
     html: tpl(
       "Nuevo diagnóstico recibido",
-      `<p><strong>${c.nombre}</strong> — ${c.rubro}<br>${c.email}</p>
+      `<p><strong>${nombre}</strong> — ${rubro}<br>${email}</p>
        <p>Revisalo en el backoffice y coordiná la primera entrevista.</p>`
     ),
   });
@@ -119,10 +135,73 @@ export async function sendApprovalEmail(p: { nombre: string; email: string }) {
     to: p.email,
     subject: "Tu perfil fue aprobado — Red Sinnergia",
     html: tpl(
-      `¡Bienvenido/a a la Red, ${p.nombre.split(" ")[0]}!`,
+      `¡Bienvenido/a a la Red, ${escapeHtml(p.nombre.split(" ")[0])}!`,
       `<p>Tu perfil fue aprobado y ya está publicado en el directorio de Sinnergia.
        Cuando una empresa busque un perfil como el tuyo, vas a aparecer entre los
        candidatos.</p>`
+    ),
+  });
+}
+
+// --- Cuenta: verificación de email y recuperación de contraseña -------------
+
+export async function sendVerificationEmail(p: {
+  nombre: string;
+  email: string;
+  url: string;
+}) {
+  await send({
+    to: p.email,
+    subject: "Confirmá tu email — Sinnergia Studio",
+    html: tpl(
+      `Hola, ${escapeHtml(p.nombre.split(" ")[0])}`,
+      `<p>Confirmá tu dirección de email para activar tu cuenta en Sinnergia.</p>
+       <p><a href="${p.url}" style="color:#000;">Confirmar mi email →</a></p>
+       <p style="color:#9a9a97;">Este enlace vence en 24 horas. Si no creaste esta
+       cuenta, podés ignorar este mensaje.</p>`
+    ),
+  });
+}
+
+export async function sendPasswordResetEmail(p: {
+  nombre: string;
+  email: string;
+  url: string;
+}) {
+  await send({
+    to: p.email,
+    subject: "Restablecé tu contraseña — Sinnergia Studio",
+    html: tpl(
+      `Hola, ${escapeHtml(p.nombre.split(" ")[0])}`,
+      `<p>Recibimos una solicitud para restablecer tu contraseña.</p>
+       <p><a href="${p.url}" style="color:#000;">Restablecer mi contraseña →</a></p>
+       <p style="color:#9a9a97;">Este enlace vence en 1 hora. Si no pediste esto,
+       podés ignorar este mensaje — tu contraseña actual sigue siendo válida.</p>`
+    ),
+  });
+}
+
+// --- Contacto empresa → freelancer -------------------------------------------
+
+export async function sendContactRequestEmail(p: {
+  freelancerNombre: string;
+  freelancerEmail: string;
+  empresaNombre: string;
+  empresaDescripcion?: string | null;
+  empresaRubro: string;
+  url: string;
+}) {
+  const empresaNombre = escapeHtml(p.empresaNombre);
+  const empresaRubro = escapeHtml(p.empresaRubro);
+  await send({
+    to: p.freelancerEmail,
+    subject: `Sinnergia — ${p.empresaNombre} quiere contactarte`,
+    html: tpl(
+      `Hola, ${escapeHtml(p.freelancerNombre.split(" ")[0])}`,
+      `<p><strong>${empresaNombre}</strong> (${empresaRubro}) está interesada en tu perfil
+       y quiere contactarte a través de Sinnergia.</p>
+       ${p.empresaDescripcion ? `<p style="color:#4a4038;">${escapeHtml(p.empresaDescripcion)}</p>` : ""}
+       <p><a href="${p.url}" style="color:#000;">Ver solicitud →</a></p>`
     ),
   });
 }

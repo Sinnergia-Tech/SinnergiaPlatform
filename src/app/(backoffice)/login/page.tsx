@@ -1,13 +1,17 @@
 "use client";
 
-import { useActionState } from "react";
+import { Suspense, useActionState } from "react";
 import { authenticate } from "@/lib/auth-actions";
+import { EMAIL_NOT_VERIFIED } from "@/lib/auth-constants";
+import { LoginResetBanner } from "@/components/account/LoginResetBanner";
+import { ResendVerificationForm } from "@/components/account/ResendVerificationForm";
 
 export default function LoginPage() {
   const [errorMessage, formAction, isPending] = useActionState(
     authenticate,
     undefined
   );
+  const emailNotVerified = errorMessage === EMAIL_NOT_VERIFIED;
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-ink px-6 py-16 text-paper">
@@ -25,38 +29,64 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <form action={formAction} className="space-y-3">
-          <input
-            type="email"
-            name="email"
-            required
-            placeholder="Email"
-            autoComplete="email"
-            className="w-full border border-paper/25 bg-transparent px-4 py-3 text-sm text-paper outline-none transition-colors placeholder:text-paper/40 focus:border-paper"
-          />
-          <input
-            type="password"
-            name="password"
-            required
-            placeholder="Contraseña"
-            autoComplete="current-password"
-            className="w-full border border-paper/25 bg-transparent px-4 py-3 text-sm text-paper outline-none transition-colors placeholder:text-paper/40 focus:border-paper"
-          />
+        <Suspense fallback={null}>
+          <LoginResetBanner />
+        </Suspense>
 
-          {errorMessage && (
-            <p className="text-sm text-paper/80">⚠ {errorMessage}</p>
-          )}
+        {emailNotVerified ? (
+          <div>
+            <p className="text-sm text-paper/80">
+              ⚠ Todavía no confirmaste tu email. Reenviá el enlace de verificación:
+            </p>
+            <ResendVerificationForm />
+          </div>
+        ) : (
+          <form action={formAction} className="space-y-3">
+            <input
+              type="email"
+              name="email"
+              required
+              placeholder="Email"
+              autoComplete="email"
+              className="w-full border border-paper/25 bg-transparent px-4 py-3 text-sm text-paper outline-none transition-colors placeholder:text-paper/40 focus:border-paper"
+            />
+            <input
+              type="password"
+              name="password"
+              required
+              placeholder="Contraseña"
+              autoComplete="current-password"
+              className="w-full border border-paper/25 bg-transparent px-4 py-3 text-sm text-paper outline-none transition-colors placeholder:text-paper/40 focus:border-paper"
+            />
 
-          <button
-            type="submit"
-            disabled={isPending}
-            className="w-full bg-paper px-6 py-3.5 text-sm font-medium uppercase tracking-[0.14em] text-ink transition-colors hover:bg-paper/85 disabled:opacity-60"
-          >
-            {isPending ? "Ingresando…" : "Ingresar"}
-          </button>
-        </form>
+            {errorMessage && (
+              <p className="text-sm text-paper/80">⚠ {errorMessage}</p>
+            )}
 
-        <p className="mt-8 text-center text-xs leading-relaxed text-paper/35">
+            <button
+              type="submit"
+              disabled={isPending}
+              className="w-full bg-paper px-6 py-3.5 text-sm font-medium uppercase tracking-[0.14em] text-ink transition-colors hover:bg-paper/85 disabled:opacity-60"
+            >
+              {isPending ? "Ingresando…" : "Ingresar"}
+            </button>
+
+            <p className="text-center text-xs">
+              <a href="/recuperar-contrasena" className="link-underline text-paper/50">
+                ¿Olvidaste tu contraseña?
+              </a>
+            </p>
+          </form>
+        )}
+
+        <p className="mt-6 text-center text-xs text-paper/50">
+          ¿No tenés cuenta?{" "}
+          <a href="/crear-cuenta" className="link-underline text-paper">
+            Creá una
+          </a>
+        </p>
+
+        <p className="mt-6 text-center text-xs leading-relaxed text-paper/35">
           Usuarios demo (seed): nico@example.com / lucia@janos.example — contraseña{" "}
           <span className="text-paper/50">demo1234</span>
         </p>

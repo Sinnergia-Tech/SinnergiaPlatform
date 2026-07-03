@@ -33,12 +33,9 @@ export function RedSinnergia() {
         <div className="mt-14 grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:gap-12">
           {/* Buscador mock (preparado para conectar a la BD) */}
           <Reveal className="border border-ink/15 bg-paper p-7 sm:p-9">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium uppercase tracking-[0.12em] text-ink">
-                ¿Qué necesitás?
-              </p>
-              <span className="kicker text-ink/30">Vista previa</span>
-            </div>
+            <p className="text-sm font-medium uppercase tracking-[0.12em] text-ink">
+              ¿Qué necesitás?
+            </p>
 
             <ul className="mt-6 flex flex-wrap gap-2.5">
               {necesidades.map((n) => (
@@ -67,10 +64,9 @@ export function RedSinnergia() {
 
             <a
               href="/red"
-              className="mt-9 flex w-full items-center justify-center gap-2 bg-ink px-6 py-3.5 text-sm font-medium uppercase tracking-[0.14em] text-paper transition-colors hover:bg-ink/85"
+              className="mt-9 flex w-full items-center justify-center bg-ink px-6 py-3.5 text-sm font-medium uppercase tracking-[0.14em] text-paper transition-colors hover:bg-ink/85"
             >
               Buscar perfiles
-              <span>→</span>
             </a>
           </Reveal>
 
@@ -95,15 +91,12 @@ export function RedSinnergia() {
               <Row label="Disponibilidad" value="Inmediata" />
             </div>
 
-            <div className="mt-8">
+            <div className="mt-8 flex justify-end">
               <a
                 href="/diagnostico"
-                className="group inline-flex items-center gap-2 bg-ink px-6 py-3 text-sm font-medium uppercase tracking-[0.12em] text-paper transition-colors hover:bg-ink/85"
+                className="inline-flex items-center bg-ink px-6 py-3 text-sm font-medium uppercase tracking-[0.12em] text-paper transition-colors hover:bg-ink/85"
               >
                 Solicitar Match
-                <span className="transition-transform duration-300 group-hover:translate-x-1">
-                  →
-                </span>
               </a>
             </div>
           </Reveal>

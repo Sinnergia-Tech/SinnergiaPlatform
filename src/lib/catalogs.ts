@@ -121,3 +121,11 @@ export const ESTADO_MATCH_LABEL: Record<string, string> = {
   cerrado: "Cerrado",
   descartado: "Descartado",
 };
+
+export const CONTACT_STATUS_LABEL: Record<string, string> = {
+  pending: "Pendiente",
+  accepted: "Aceptado",
+  rejected: "Rechazado",
+  cancelled: "Cancelado",
+  archived: "Archivado",
+};

@@ -16,7 +16,7 @@ export function Hero() {
         </p>
 
         <h1
-          className="fade-up mt-6 max-w-5xl text-[2.7rem] font-light leading-[1.02] tracking-[-0.02em] sm:text-6xl lg:text-[5.2rem]"
+          className="fade-up mt-6 max-w-5xl select-none text-[2.7rem] font-light leading-[1.02] tracking-[-0.02em] sm:text-6xl lg:text-[5.2rem]"
           style={{ animationDelay: "0.12s" }}
         >
           Definamos el <span className="font-semibold">QUÉ.</span>

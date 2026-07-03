@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Avatar } from "./Avatar";
-import { SolicitarMatchButton } from "./SolicitarMatchButton";
+import { ContactarFreelancerButton } from "./ContactarFreelancerButton";
 
 export type CardProf = {
   id: string;
@@ -22,11 +22,15 @@ export function ProfileCard({
   score,
   razones,
   featured = false,
+  canContact = false,
+  contactStatus = null,
 }: {
   p: CardProf;
   score?: number;
   razones?: string[];
   featured?: boolean;
+  canContact?: boolean;
+  contactStatus?: string | null;
 }) {
   return (
     <div
@@ -98,9 +102,11 @@ export function ProfileCard({
         >
           Ver perfil
         </Link>
-        <div className="ml-auto">
-          <SolicitarMatchButton professionalId={p.id} />
-        </div>
+        {canContact && (
+          <div className="ml-auto">
+            <ContactarFreelancerButton professionalId={p.id} initialStatus={contactStatus} />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -34,12 +34,9 @@ export function Button({
   return (
     <a
       href={href}
-      className={`group inline-flex items-center justify-center gap-2 px-7 py-3.5 text-sm font-medium uppercase tracking-[0.12em] transition-all duration-300 ${styles[tone][variant]} ${className}`}
+      className={`inline-flex items-center justify-center px-7 py-3.5 text-sm font-medium uppercase tracking-[0.12em] transition-all duration-300 ${styles[tone][variant]} ${className}`}
     >
       {children}
-      <span className="transition-transform duration-300 group-hover:translate-x-1">
-        →
-      </span>
     </a>
   );
 }

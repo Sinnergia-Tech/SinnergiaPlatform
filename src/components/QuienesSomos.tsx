@@ -33,7 +33,7 @@ export function QuienesSomos() {
             Las personas detrás del estudio.
           </h2>
           <p className="mt-6 text-lg text-ink/55">
-            Un equipo chico que cree en definir el problema correcto antes de buscar la
+            Un equipo que cree en definir el problema correcto antes de buscar la
             solución. <span className="text-ink/40">(Texto a completar.)</span>
           </p>
         </Reveal>

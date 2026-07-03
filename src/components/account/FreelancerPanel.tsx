@@ -1,5 +1,7 @@
 import { Badge, estadoVariant } from "@/components/admin/ui";
-import { Placeholder } from "@/components/ui/Placeholder";
+import { PortfolioManager, type PortfolioItem } from "@/components/account/PortfolioManager";
+import { PhotoUploadField } from "@/components/account/PhotoUploadField";
+import { uploadFreelancerPhotoAction } from "@/lib/actions";
 import { ESTADO_PROFESIONAL_LABEL, ESTADO_MATCH_LABEL } from "@/lib/catalogs";
 import type { EstadoMatch, EstadoProfesional } from "@/lib/types";
 
@@ -20,6 +22,8 @@ type Prof = {
   honorarios: string;
   disponibilidad: string;
   estado: EstadoProfesional;
+  fotoUrl: string | null;
+  portfolio: PortfolioItem[];
 };
 
 type Op = {
@@ -68,8 +72,13 @@ export function FreelancerPanel({
         </div>
 
         <div className="flex flex-col gap-6 sm:flex-row">
-          <div className="w-28 shrink-0">
-            <Placeholder label="Foto" ratio="1 / 1" />
+          <div className="shrink-0">
+            <PhotoUploadField
+              currentUrl={p.fotoUrl}
+              name={p.nombre}
+              uploadAction={uploadFreelancerPhotoAction}
+              shape="circle"
+            />
           </div>
           <div className="flex-1">
             <h3 className="text-xl font-semibold">{p.nombre}</h3>
@@ -91,6 +100,8 @@ export function FreelancerPanel({
           </div>
         </div>
       </section>
+
+      <PortfolioManager items={p.portfolio} />
 
       <section className="border border-ink/10 bg-paper">
         <div className="border-b border-ink/10 px-6 py-4">

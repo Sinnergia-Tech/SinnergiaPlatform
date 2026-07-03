@@ -4,7 +4,7 @@ import { AccountTopbar } from "@/components/account/AccountTopbar";
 import { FreelancerPanel } from "@/components/account/FreelancerPanel";
 import { EmpresaPanel } from "@/components/account/EmpresaPanel";
 import { Container } from "@/components/ui/Container";
-import { getFreelancerData, getEmpresaData } from "@/lib/data";
+import { getFreelancerData, getEmpresaData, countUnreadContacts } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
@@ -17,9 +17,14 @@ export default async function CuentaPage() {
 
   if (role === "admin") redirect("/admin");
 
+  const unreadContacts =
+    role === "freelancer" && professionalId
+      ? await countUnreadContacts(professionalId)
+      : 0;
+
   return (
     <div className="min-h-screen bg-smoke">
-      <AccountTopbar user={{ nombre, rol: role }} />
+      <AccountTopbar user={{ nombre, rol: role }} unreadContacts={unreadContacts} />
       <main className="py-10">
         <Container className="max-w-[1000px]">
           {role === "freelancer" && professionalId && (

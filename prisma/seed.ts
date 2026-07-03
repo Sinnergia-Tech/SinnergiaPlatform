@@ -146,41 +146,48 @@ async function main() {
   const adminHash = await bcrypt.hash(ADMIN_PASSWORD, 10);
   const demoHash = await bcrypt.hash(DEMO_PASSWORD, 10);
 
+  // Cuentas provistas por seed: se consideran ya verificadas (no pasan por
+  // el flujo de verificación de email, que es sólo para auto-registro).
+  const now = new Date();
+
   // Admin
   await prisma.user.upsert({
     where: { email: ADMIN_EMAIL },
-    update: { passwordHash: adminHash, nombre: "Equipo Sinnergia", role: "admin" },
+    update: { passwordHash: adminHash, nombre: "Equipo Sinnergia", role: "admin", emailVerified: now },
     create: {
       email: ADMIN_EMAIL,
       passwordHash: adminHash,
       nombre: "Equipo Sinnergia",
       role: "admin",
+      emailVerified: now,
     },
   });
 
   // Freelancer demo (vinculado a un profesional)
   await prisma.user.upsert({
     where: { email: "nico@example.com" },
-    update: { passwordHash: demoHash, nombre: "Nicolás Ferraro", role: "freelancer", professionalId: "p1" },
+    update: { passwordHash: demoHash, nombre: "Nicolás Ferraro", role: "freelancer", professionalId: "p1", emailVerified: now },
     create: {
       email: "nico@example.com",
       passwordHash: demoHash,
       nombre: "Nicolás Ferraro",
       role: "freelancer",
       professionalId: "p1",
+      emailVerified: now,
     },
   });
 
   // Empresa demo (vinculada a una empresa)
   await prisma.user.upsert({
     where: { email: "lucia@janos.example" },
-    update: { passwordHash: demoHash, nombre: "Jano's", role: "empresa", companyId: "c1" },
+    update: { passwordHash: demoHash, nombre: "Jano's", role: "empresa", companyId: "c1", emailVerified: now },
     create: {
       email: "lucia@janos.example",
       passwordHash: demoHash,
       nombre: "Jano's",
       role: "empresa",
       companyId: "c1",
+      emailVerified: now,
     },
   });
 

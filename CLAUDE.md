@@ -16,7 +16,9 @@ No es una agencia — es un estudio / laboratorio de ideas.
 - **Tailwind CSS v4** (config vía CSS en `src/app/globals.css`, tokens en `@theme`)
 - Tipografía: **Jost** (sustituto web de Century Gothic), cargada desde Google Fonts.
 - Base de datos: **PostgreSQL en Supabase** + Prisma (integración EN CURSO). Cliente en `src/lib/prisma.ts`, schema en `prisma/schema.prisma`.
-- Hosting objetivo: **Vercel** + Supabase + Cloudflare R2.
+- Hosting objetivo: **Vercel** + Supabase. Almacenamiento de archivos: **Vercel Blob**
+  (se eligió por simplicidad de setup ya estando en Vercel; se descartó Cloudflare R2
+  del plan original). Ver `src/lib/storage.ts`.
 
 ## Regla de marca (estricta)
 
@@ -70,8 +72,10 @@ Assets/                 # material de marca original (fuente de verdad)
       `solicitarMatchAction` que crea la solicitud con candidatos rankeados.
       Emails transaccionales (Resend) en `src/lib/email.ts`.
 - [ ] **Fase 4 (futuro) — Comunidad/membresía. Luego, capa de IA.**
-- Pendiente de pulido (post-funcionalidad): subida real de fotos/portfolios (R2/S3),
-  verificar dominio en Resend para mails a externos, y bugs visuales de la landing.
+- Pendiente de pulido (post-funcionalidad): subida real de imágenes de portfolio
+  (la foto de perfil y el logo de empresa ya suben de verdad, vía Vercel Blob —
+  falta cargar `BLOB_READ_WRITE_TOKEN`, ver `TODO.md`), verificar dominio en
+  Resend para mails a externos, y bugs visuales de la landing.
 
 ## Integración de base de datos (implementada)
 

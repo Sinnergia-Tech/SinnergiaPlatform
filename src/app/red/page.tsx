@@ -1,9 +1,15 @@
 import { Suspense } from "react";
-import { SiteTopbar } from "@/components/SiteTopbar";
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
+import { AccountTopbar } from "@/components/account/AccountTopbar";
 import { Container } from "@/components/ui/Container";
 import { DirectoryFilters } from "@/components/directory/DirectoryFilters";
 import { ProfileCard } from "@/components/directory/ProfileCard";
-import { listApprovedProfessionals } from "@/lib/data";
+import {
+  listApprovedProfessionals,
+  listContactsForCompany,
+  countUnreadContacts,
+} from "@/lib/data";
 import { rankProfessionals, type MatchQuery } from "@/lib/matching";
 
 export const dynamic = "force-dynamic";
@@ -41,12 +47,34 @@ export default async function RedPage({
     query.presupuesto
   );
 
-  const approved = await listApprovedProfessionals();
+  const [approved, session] = await Promise.all([
+    listApprovedProfessionals(),
+    auth(),
+  ]);
+  if (!session?.user) redirect("/login");
+
   const { top, resto } = rankProfessionals(approved, query, 5);
+  const canContact = session.user.role === "empresa";
+  const contactStatusByProfessional = new Map<string, string>();
+  if (canContact && session.user.companyId) {
+    const contacts = await listContactsForCompany(session.user.companyId);
+    for (const c of contacts) {
+      if (c.status === "pending" || c.status === "accepted") {
+        contactStatusByProfessional.set(c.professionalId, c.status);
+      }
+    }
+  }
+  const unreadContacts =
+    session.user.role === "freelancer" && session.user.professionalId
+      ? await countUnreadContacts(session.user.professionalId)
+      : 0;
 
   return (
     <main className="min-h-screen bg-smoke">
-      <SiteTopbar />
+      <AccountTopbar
+        user={{ nombre: session.user.name ?? "", rol: session.user.role }}
+        unreadContacts={unreadContacts}
+      />
 
       <section className="border-b border-ink/10 bg-ink py-14 text-paper">
         <Container>
@@ -85,20 +113,18 @@ export default async function RedPage({
                   </span>
                 </div>
 
-                {/* Top 5 — carrusel horizontal */}
-                <div className="-mx-1 flex snap-x snap-mandatory gap-4 overflow-x-auto px-1 pb-4">
+                {/* Top 5 — grilla, evita cortar tarjetas en pantallas anchas */}
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {top.map((sc) => (
-                    <div
+                    <ProfileCard
                       key={sc.professional.id}
-                      className="w-[300px] shrink-0 snap-start sm:w-[340px]"
-                    >
-                      <ProfileCard
-                        p={sc.professional}
-                        score={hasQuery ? sc.score : undefined}
-                        razones={hasQuery ? sc.razones : undefined}
-                        featured
-                      />
-                    </div>
+                      p={sc.professional}
+                      score={hasQuery ? sc.score : undefined}
+                      razones={hasQuery ? sc.razones : undefined}
+                      featured
+                      canContact={canContact}
+                      contactStatus={contactStatusByProfessional.get(sc.professional.id)}
+                    />
                   ))}
                 </div>
 
@@ -113,6 +139,8 @@ export default async function RedPage({
                           p={sc.professional}
                           score={hasQuery ? sc.score : undefined}
                           razones={hasQuery ? sc.razones : undefined}
+                          canContact={canContact}
+                          contactStatus={contactStatusByProfessional.get(sc.professional.id)}
                         />
                       ))}
                     </div>

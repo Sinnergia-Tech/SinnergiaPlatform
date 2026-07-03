@@ -115,14 +115,11 @@ export function Servicios() {
 
               <a
                 href={s.href}
-                className={`group mt-auto inline-flex items-center gap-2 self-end pt-8 text-sm font-medium uppercase tracking-[0.12em] ${
+                className={`mt-auto inline-flex items-center self-end pt-8 text-sm font-medium uppercase tracking-[0.12em] ${
                   s.featured ? "text-paper" : "text-ink"
                 }`}
               >
                 <span className="link-underline">{s.cta}</span>
-                <span className="transition-transform duration-300 group-hover:translate-x-1">
-                  →
-                </span>
               </a>
             </Reveal>
           ))}

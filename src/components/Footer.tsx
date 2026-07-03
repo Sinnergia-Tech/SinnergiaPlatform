@@ -119,9 +119,17 @@ export function Footer() {
         </div>
 
         {/* Bottom */}
-        <div className="flex flex-col gap-2 border-t border-ink/10 pt-8 text-xs text-ink/40 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 border-t border-ink/10 pt-8 text-xs text-ink/40 sm:flex-row sm:items-center sm:justify-between">
           <span>© {new Date().getFullYear()} Sinnergia Studio. Todos los derechos reservados.</span>
-          <span>Definamos el QUÉ · Te explicamos el CÓMO</span>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+            <a href="/terminos-y-condiciones" className="link-underline text-ink/40 hover:text-ink">
+              Términos y condiciones
+            </a>
+            <a href="/privacidad" className="link-underline text-ink/40 hover:text-ink">
+              Política de privacidad
+            </a>
+            <span>Definamos el QUÉ · Te explicamos el CÓMO</span>
+          </div>
         </div>
       </Container>
     </footer>

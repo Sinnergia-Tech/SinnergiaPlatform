@@ -42,17 +42,12 @@ export function Portfolio() {
               <div className="overflow-hidden">
                 <Placeholder label="Imagen del caso" ratio={c.ratio} />
               </div>
-              <div className="mt-5 flex items-start justify-between">
-                <div>
-                  <p className="kicker text-ink/40">{c.label}</p>
-                  <h3 className="mt-2 text-lg font-medium">Título del proyecto</h3>
-                  <p className="mt-1 text-sm text-ink/50">
-                    Problema → Diagnóstico → Solución
-                  </p>
-                </div>
-                <span className="mt-1 text-ink/30 transition-transform duration-300 group-hover:translate-x-1 group-hover:text-ink">
-                  →
-                </span>
+              <div className="mt-5">
+                <p className="kicker text-ink/40">{c.label}</p>
+                <h3 className="mt-2 text-lg font-medium">Título del proyecto</h3>
+                <p className="mt-1 text-sm text-ink/50">
+                  Problema → Diagnóstico → Solución
+                </p>
               </div>
             </Reveal>
           ))}

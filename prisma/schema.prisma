@@ -42,21 +42,69 @@ enum EstadoMatch {
   descartado
 }
 
+enum ContactStatus {
+  pending
+  accepted
+  rejected
+  cancelled
+  archived
+}
+
 // --- Usuarios (auth) --------------------------------------------------------
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  nombre       String
-  role         UserRole
-  createdAt    DateTime @default(now())
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  nombre        String
+  role          UserRole
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
 
   // Vínculo con la entidad de dominio según el rol
   professional   Professional? @relation(fields: [professionalId], references: [id])
   professionalId String?       @unique
   company        Company?      @relation(fields: [companyId], references: [id])
   companyId      String?       @unique
+
+  verificationTokens EmailVerificationToken[]
+  resetTokens         PasswordResetToken[]
+}
+
+// --- Verificación de email y recuperación de contraseña --------------------
+
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// --- Rate limiting (sin infra externa, respaldado en la DB) ----------------
+
+model RateLimitHit {
+  id        String   @id @default(cuid())
+  key       String
+  createdAt DateTime @default(now())
+
+  @@index([key, createdAt])
 }
 
 // --- Dominio ----------------------------------------------------------------
@@ -91,8 +139,24 @@ model Professional {
 
   user       User?
   candidatos MatchCandidate[]
+  portfolio  PortfolioItem[]
+  contacts   Contact[]
 
   @@index([estado])
+}
+
+model PortfolioItem {
+  id             String       @id @default(cuid())
+  professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  professionalId String
+  titulo         String
+  descripcion    String
+  imagenUrl      String?
+  enlace         String?
+  orden          Int          @default(0)
+  createdAt      DateTime     @default(now())
+
+  @@index([professionalId])
 }
 
 model Company {
@@ -106,10 +170,33 @@ model Company {
   sitioWeb  String?
   origen    String?
   createdAt DateTime @default(now())
+  // Perfil (visible al freelancer en el futuro cuando la empresa lo contacte)
+  descripcion String?
+  logoUrl     String?
+  linkedin    String?
+  instagram   String?
+  ubicacion   String?
 
   user      User?
   diagnoses Diagnosis[]
   matches   MatchRequest[]
+  contacts  Contact[]
+}
+
+model Contact {
+  id                     String        @id @default(cuid())
+  company                Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId              String
+  professional           Professional  @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  professionalId         String
+  status                 ContactStatus @default(pending)
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+  readAt                 DateTime?
+  lastNotificationSentAt DateTime?
+
+  @@index([professionalId, status])
+  @@index([companyId])
 }
 
 model Diagnosis {

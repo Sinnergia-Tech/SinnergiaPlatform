@@ -6,5 +6,5 @@ export default NextAuth(authConfig).auth;
 
 export const config = {
   // Corre en las rutas privadas (evita assets y la API de auth)
-  matcher: ["/admin/:path*", "/cuenta/:path*"],
+  matcher: ["/admin/:path*", "/cuenta/:path*", "/red/:path*"],
 };
