@@ -61,6 +61,18 @@ model User {
   emailVerified DateTime?
   createdAt     DateTime  @default(now())
 
+  // Ciclo de vida de la cuenta.
+  // - lastLoginAt: se refresca en cada login. La "inactividad" (>30d sin
+  //   loguear) se DERIVA de este campo en las queries; no hay estado que flipear.
+  // - disabledAt: deshabilitación MANUAL (el usuario se ocultó a propósito).
+  //   No se limpia al loguear; requiere reactivación explícita.
+  // - deletedAt: soft-delete + anonimización. Cuenta fuera del sistema.
+  // - inactivityWarnedAt: evita reenviar el aviso de inactividad; se limpia al loguear.
+  lastLoginAt        DateTime  @default(now())
+  disabledAt         DateTime?
+  deletedAt          DateTime?
+  inactivityWarnedAt DateTime?
+
   // Vínculo con la entidad de dominio según el rol
   professional   Professional? @relation(fields: [professionalId], references: [id])
   professionalId String?       @unique
@@ -116,6 +128,7 @@ model Professional {
   whatsapp       String?
   linkedin       String?
   instagram      String?
+  facebook       String?
   portfolioUrl   String?
   fotoUrl        String?
   titular        String
@@ -131,6 +144,10 @@ model Professional {
   modalidad      String
   disponibilidad String
   ubicacion      String?
+  // Portfolio: descripción general + hasta 3 imágenes de galería.
+  // Los proyectos individuales viven en PortfolioItem.
+  portfolioDescripcion String?
+  portfolioImagenes    String[] @default([])
   // Moderación
   estado         EstadoProfesional @default(pendiente)
   destacado      Boolean           @default(false)

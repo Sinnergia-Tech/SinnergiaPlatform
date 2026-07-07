@@ -6,8 +6,10 @@ import { logoutAction } from "@/lib/auth-actions";
 
 export function Nav({
   account,
+  showDiagnostico = true,
 }: {
   account?: { nombre: string; href: string } | null;
+  showDiagnostico?: boolean;
 }) {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
@@ -99,16 +101,18 @@ export function Nav({
               Ingresar
             </a>
           )}
-          <a
-            href="/diagnostico"
-            className={`px-5 py-2.5 text-xs font-medium uppercase tracking-[0.14em] transition-all duration-300 ${
-              dark
-                ? "bg-ink text-paper hover:bg-ink/85"
-                : "bg-paper text-ink hover:bg-paper/85"
-            }`}
-          >
-            Solicitar diagnóstico
-          </a>
+          {showDiagnostico && (
+            <a
+              href="/diagnostico"
+              className={`px-5 py-2.5 text-xs font-medium uppercase tracking-[0.14em] transition-all duration-300 ${
+                dark
+                  ? "bg-ink text-paper hover:bg-ink/85"
+                  : "bg-paper text-ink hover:bg-paper/85"
+              }`}
+            >
+              Solicitar diagnóstico
+            </a>
+          )}
         </nav>
 
         {/* Mobile toggle */}
@@ -176,13 +180,15 @@ export function Nav({
                 Ingresar
               </a>
             )}
-            <a
-              href="/diagnostico"
-              onClick={() => setOpen(false)}
-              className="mt-4 bg-ink px-5 py-3 text-center text-xs font-medium uppercase tracking-[0.14em] text-paper"
-            >
-              Solicitar diagnóstico
-            </a>
+            {showDiagnostico && (
+              <a
+                href="/diagnostico"
+                onClick={() => setOpen(false)}
+                className="mt-4 bg-ink px-5 py-3 text-center text-xs font-medium uppercase tracking-[0.14em] text-paper"
+              >
+                Solicitar diagnóstico
+              </a>
+            )}
           </Container>
         </div>
       )}

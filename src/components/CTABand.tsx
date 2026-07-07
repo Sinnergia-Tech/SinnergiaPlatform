@@ -2,7 +2,7 @@ import { Container } from "./ui/Container";
 import { Reveal } from "./ui/Reveal";
 import { Button } from "./ui/Button";
 
-export function CTABand() {
+export function CTABand({ showDiagnostico = true }: { showDiagnostico?: boolean }) {
   return (
     <section id="diagnostico" className="bg-ink py-24 text-paper md:py-32">
       <Container>
@@ -18,9 +18,11 @@ export function CTABand() {
             </p>
           </div>
           <div className="flex shrink-0 flex-col gap-4 sm:flex-row lg:flex-col">
-            <Button href="/diagnostico" tone="onDark" variant="solid">
-              Solicitar diagnóstico
-            </Button>
+            {showDiagnostico && (
+              <Button href="/diagnostico" tone="onDark" variant="solid">
+                Solicitar diagnóstico
+              </Button>
+            )}
             <Button href="/sumate" tone="onDark" variant="outline">
               Sumarme a la red
             </Button>

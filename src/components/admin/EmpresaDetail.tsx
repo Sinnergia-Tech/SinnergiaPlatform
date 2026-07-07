@@ -25,6 +25,7 @@ type Diag = {
   problemaPrincipal: string;
   estadoLead: EstadoLead;
   notas: string | null;
+  createdAt: string | Date;
 };
 
 type Company = {
@@ -35,9 +36,18 @@ type Company = {
   contacto: string;
   email: string;
   telefono: string | null;
+  sitioWeb: string | null;
   origen: string | null;
   diagnoses: Diag[];
 };
+
+function formatFecha(value: string | Date) {
+  return new Date(value).toLocaleDateString("es-AR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+}
 
 export function EmpresaDetail({ company }: { company: Company }) {
   const diag = company.diagnoses[0];
@@ -68,7 +78,12 @@ export function EmpresaDetail({ company }: { company: Company }) {
 
       <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
         <Card className="p-6">
-          <h2 className="mb-6 text-sm font-medium uppercase tracking-[0.12em] text-ink/50">Diagnóstico</h2>
+          <div className="mb-6 flex items-baseline justify-between gap-3">
+            <h2 className="text-sm font-medium uppercase tracking-[0.12em] text-ink/50">Diagnóstico</h2>
+            {diag && (
+              <span className="text-xs text-ink/45">Recibido el {formatFecha(diag.createdAt)}</span>
+            )}
+          </div>
           {diag ? (
             <div className="space-y-5">
               <DataBlock label="Objetivos" value={diag.objetivos} />
@@ -138,6 +153,7 @@ export function EmpresaDetail({ company }: { company: Company }) {
             <Row label="Contacto" value={company.contacto} />
             <Row label="Email" value={company.email} />
             <Row label="Teléfono" value={company.telefono ?? "—"} />
+            <Row label="Sitio web" value={company.sitioWeb ?? "—"} />
             <Row label="Rubro" value={company.rubro} />
             <Row label="Tamaño" value={company.tamano ?? "—"} />
             <Row label="Origen" value={company.origen ?? "—"} />

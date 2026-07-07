@@ -3,6 +3,14 @@
 Estado al 2026-07-03 (actualizado con la subida de fotos de perfil). Actualizar/borrar
 ítems a medida que se resuelven.
 
+## 🟡 A futuro (a definir con stakeholders)
+
+- **Tags / "tipo de proyecto" en el modal de portfolio.** Cada proyecto podría
+  llevar tags propios (ej. Filmmaker, Producción, un rubro) que se muestren en su
+  modal de detalle. Falta definir el set de tags y si son por-proyecto o reusan
+  las especialidades del perfil. El modal de proyecto ya existe
+  (`src/components/directory/PortfolioProjects.tsx`) — solo faltaría el campo + selector.
+
 ## 🔴 Bloqueante: falta configurar Vercel Blob para que la subida de fotos funcione
 
 **Contexto:** se implementó la subida real de foto de perfil (freelancer) y logo

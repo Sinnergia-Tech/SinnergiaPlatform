@@ -17,12 +17,14 @@ export default function LoginPage() {
     <main className="flex min-h-screen items-center justify-center bg-ink px-6 py-16 text-paper">
       <div className="w-full max-w-sm">
         <div className="mb-10 flex flex-col items-center text-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/brand/isotipo-blanco.png"
-            alt="Sinnergia"
-            className="h-12 w-12 object-contain"
-          />
+          <a href="/" aria-label="Ir a la página principal de Sinnergia">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/brand/isotipo-blanco.png"
+              alt="Sinnergia"
+              className="h-12 w-12 object-contain transition-opacity hover:opacity-70"
+            />
+          </a>
           <h1 className="mt-6 text-2xl font-light">Ingresá a Sinnergia</h1>
           <p className="mt-2 text-sm text-paper/50">
             Acceso a tu cuenta y al backoffice.

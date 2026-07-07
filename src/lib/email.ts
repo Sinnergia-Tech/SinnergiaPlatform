@@ -181,6 +181,68 @@ export async function sendPasswordResetEmail(p: {
   });
 }
 
+// --- Job diario (cron): inactividad, recordatorios, moderación --------------
+
+export async function sendInactivityWarningEmail(p: {
+  nombre: string;
+  email: string;
+  loginUrl: string;
+}) {
+  await send({
+    to: p.email,
+    subject: "Tu cuenta se va a ocultar por inactividad — Sinnergia",
+    html: tpl(
+      `Hola, ${escapeHtml(p.nombre.split(" ")[0])}`,
+      `<p>Hace un tiempo que no entrás a Sinnergia. Si no iniciás sesión en los
+       próximos días, tu cuenta va a dejar de ser visible para el resto por
+       inactividad.</p>
+       <p>Con solo volver a entrar, seguís activo — no perdés nada.</p>
+       <p><a href="${p.loginUrl}" style="color:#000;">Iniciar sesión →</a></p>`
+    ),
+  });
+}
+
+export async function sendContactReminderEmail(p: {
+  freelancerNombre: string;
+  freelancerEmail: string;
+  empresaNombre: string;
+  url: string;
+}) {
+  const empresaNombre = escapeHtml(p.empresaNombre);
+  await send({
+    to: p.freelancerEmail,
+    subject: `Tenés una solicitud de contacto sin responder — Sinnergia`,
+    html: tpl(
+      `Hola, ${escapeHtml(p.freelancerNombre.split(" ")[0])}`,
+      `<p><strong>${empresaNombre}</strong> te contactó a través de Sinnergia y
+       todavía no viste su solicitud.</p>
+       <p><a href="${p.url}" style="color:#000;">Ver la solicitud →</a></p>`
+    ),
+  });
+}
+
+export async function sendAdminModerationDigest(p: {
+  pendientes: { nombre: string; titular: string; dias: number }[];
+  url: string;
+}) {
+  const filas = p.pendientes
+    .map(
+      (x) =>
+        `<li><strong>${escapeHtml(x.nombre)}</strong> — ${escapeHtml(x.titular)} · hace ${x.dias} día(s)</li>`
+    )
+    .join("");
+  await send({
+    to: ADMIN,
+    subject: `${p.pendientes.length} profesional(es) esperando moderación — Sinnergia`,
+    html: tpl(
+      "Perfiles pendientes de aprobación",
+      `<p>Hay ${p.pendientes.length} perfil(es) esperando revisión hace 2 días o más:</p>
+       <ul style="padding-left:18px;">${filas}</ul>
+       <p><a href="${p.url}" style="color:#000;">Ir a moderación →</a></p>`
+    ),
+  });
+}
+
 // --- Contacto empresa → freelancer -------------------------------------------
 
 export async function sendContactRequestEmail(p: {

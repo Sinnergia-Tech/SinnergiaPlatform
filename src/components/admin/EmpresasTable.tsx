@@ -12,8 +12,16 @@ type Row = {
   contacto: string;
   rubro: string;
   tamano: string | null;
-  diagnoses: { estadoLead: EstadoLead; presupuesto: string }[];
+  diagnoses: { estadoLead: EstadoLead; presupuesto: string; createdAt: string | Date }[];
 };
+
+function formatFecha(value: string | Date) {
+  return new Date(value).toLocaleDateString("es-AR", {
+    day: "2-digit",
+    month: "short",
+    year: "2-digit",
+  });
+}
 
 const ESTADOS = [
   "todos",
@@ -80,6 +88,7 @@ export function EmpresasTable({ initial }: { initial: Row[] }) {
               <th className="px-5 py-3 font-medium">Rubro</th>
               <th className="px-5 py-3 font-medium">Tamaño</th>
               <th className="px-5 py-3 font-medium">Presupuesto</th>
+              <th className="px-5 py-3 font-medium">Recibido</th>
               <th className="px-5 py-3 font-medium">Estado del lead</th>
               <th className="px-5 py-3 text-right font-medium">Acciones</th>
             </tr>
@@ -98,6 +107,7 @@ export function EmpresasTable({ initial }: { initial: Row[] }) {
                   <td className="px-5 py-4 text-ink/70">{c.rubro}</td>
                   <td className="px-5 py-4 text-ink/70">{c.tamano ?? "—"}</td>
                   <td className="px-5 py-4 text-ink/70">{diag?.presupuesto ?? "—"}</td>
+                  <td className="px-5 py-4 text-ink/70">{diag ? formatFecha(diag.createdAt) : "—"}</td>
                   <td className="px-5 py-4">
                     {diag ? (
                       <Badge variant={estadoVariant(diag.estadoLead)}>{ESTADO_LEAD_LABEL[diag.estadoLead]}</Badge>
@@ -115,7 +125,7 @@ export function EmpresasTable({ initial }: { initial: Row[] }) {
             })}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-5 py-10 text-center text-ink/45">
+                <td colSpan={7} className="px-5 py-10 text-center text-ink/45">
                   No hay empresas con estos filtros.
                 </td>
               </tr>

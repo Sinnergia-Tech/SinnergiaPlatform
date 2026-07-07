@@ -34,9 +34,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const ok = await verifyPassword(password, user.passwordHash);
         if (!ok) return null;
 
+        // Cuenta eliminada (soft-delete): no puede iniciar sesión.
+        if (user.deletedAt) return null;
+
         if (!user.emailVerified) {
           throw new EmailNotVerifiedError();
         }
+
+        // Registrar actividad: refresca la ventana de inactividad y limpia el
+        // aviso pendiente. La deshabilitación MANUAL (disabledAt) NO se toca acá
+        // —se reactiva con una acción explícita, no por loguear.
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { lastLoginAt: new Date(), inactivityWarnedAt: null },
+        });
 
         return {
           id: user.id,

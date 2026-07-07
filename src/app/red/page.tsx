@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { requireAccount } from "@/lib/account-guard";
 import { AccountTopbar } from "@/components/account/AccountTopbar";
 import { Container } from "@/components/ui/Container";
 import { DirectoryFilters } from "@/components/directory/DirectoryFilters";
@@ -47,11 +47,9 @@ export default async function RedPage({
     query.presupuesto
   );
 
-  const [approved, session] = await Promise.all([
-    listApprovedProfessionals(),
-    auth(),
-  ]);
-  if (!session?.user) redirect("/login");
+  const { session, disabled } = await requireAccount();
+  if (disabled) redirect("/cuenta");
+  const approved = await listApprovedProfessionals();
 
   const { top, resto } = rankProfessionals(approved, query, 5);
   const canContact = session.user.role === "empresa";

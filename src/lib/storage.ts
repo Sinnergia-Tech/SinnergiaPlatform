@@ -1,20 +1,11 @@
 import { put, del } from "@vercel/blob";
-
-const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-const MAX_BYTES = 4 * 1024 * 1024; // 4MB
+import { checkImageFile } from "@/lib/image-constraints";
 
 export class InvalidPhotoError extends Error {}
 
 function validate(file: File) {
-  if (!ALLOWED_TYPES.has(file.type)) {
-    throw new InvalidPhotoError("Formato no válido. Usá JPG, PNG o WEBP.");
-  }
-  if (file.size > MAX_BYTES) {
-    throw new InvalidPhotoError("La imagen no puede pesar más de 4MB.");
-  }
-  if (file.size === 0) {
-    throw new InvalidPhotoError("El archivo está vacío.");
-  }
+  const err = checkImageFile(file);
+  if (err) throw new InvalidPhotoError(err);
 }
 
 /**

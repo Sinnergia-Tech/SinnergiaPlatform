@@ -1,6 +1,8 @@
 import { Badge, estadoVariant } from "@/components/admin/ui";
 import { PortfolioManager, type PortfolioItem } from "@/components/account/PortfolioManager";
 import { PhotoUploadField } from "@/components/account/PhotoUploadField";
+import { SocialLinksEditor } from "@/components/account/SocialLinksEditor";
+import { SocialIcons } from "@/components/directory/SocialIcons";
 import { uploadFreelancerPhotoAction } from "@/lib/actions";
 import { ESTADO_PROFESIONAL_LABEL, ESTADO_MATCH_LABEL } from "@/lib/catalogs";
 import type { EstadoMatch, EstadoProfesional } from "@/lib/types";
@@ -21,8 +23,13 @@ type Prof = {
   modalidad: string;
   honorarios: string;
   disponibilidad: string;
+  instagram: string | null;
+  facebook: string | null;
+  linkedin: string | null;
   estado: EstadoProfesional;
   fotoUrl: string | null;
+  portfolioDescripcion: string | null;
+  portfolioImagenes: string[];
   portfolio: PortfolioItem[];
 };
 
@@ -45,19 +52,18 @@ export function FreelancerPanel({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="kicker text-ink/40">Tu cuenta</p>
           <h1 className="mt-2 text-2xl font-semibold">Hola, {p.nombre.split(" ")[0]}</h1>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-ink/50">Estado del perfil:</span>
-          <Badge variant={estadoVariant(p.estado)}>{ESTADO_PROFESIONAL_LABEL[p.estado]}</Badge>
+        <div className="flex flex-col gap-2 sm:items-end">
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-ink/50">Estado del perfil:</span>
+            <Badge variant={estadoVariant(p.estado)}>{ESTADO_PROFESIONAL_LABEL[p.estado]}</Badge>
+          </div>
+          <p className="max-w-xs text-sm text-ink/50 sm:text-right">{estadoAyuda[p.estado]}</p>
         </div>
-      </div>
-
-      <div className="border border-ink/15 bg-smoke px-5 py-4 text-sm text-ink/70">
-        {estadoAyuda[p.estado]}
       </div>
 
       <section className="border border-ink/10 bg-paper p-6">
@@ -78,6 +84,7 @@ export function FreelancerPanel({
               name={p.nombre}
               uploadAction={uploadFreelancerPhotoAction}
               shape="circle"
+              size="lg"
             />
           </div>
           <div className="flex-1">
@@ -91,17 +98,28 @@ export function FreelancerPanel({
               ))}
             </div>
 
-            <div className="mt-5 grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-4">
+            <div className="mt-5 grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
               <Meta label="Experiencia" value={p.experiencia} />
               <Meta label="Modalidad" value={p.modalidad} />
-              <Meta label="Honorarios" value={p.honorarios} />
               <Meta label="Disponibilidad" value={p.disponibilidad} />
+            </div>
+
+            <div className="mt-5">
+              <SocialIcons socials={p} size={20} />
             </div>
           </div>
         </div>
       </section>
 
-      <PortfolioManager items={p.portfolio} />
+      <SocialLinksEditor
+        initial={{ instagram: p.instagram, facebook: p.facebook, linkedin: p.linkedin }}
+      />
+
+      <PortfolioManager
+        descripcion={p.portfolioDescripcion}
+        imagenes={p.portfolioImagenes}
+        items={p.portfolio}
+      />
 
       <section className="border border-ink/10 bg-paper">
         <div className="border-b border-ink/10 px-6 py-4">

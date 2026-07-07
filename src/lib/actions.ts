@@ -17,6 +17,8 @@ import { hashPassword } from "@/lib/password";
 import { isPasswordValid, PASSWORD_HINT } from "@/lib/password-policy";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { uploadProfilePhoto, InvalidPhotoError } from "@/lib/storage";
+import { PORTFOLIO_LIMITS } from "@/lib/portfolio-limits";
+import { normalizeExternalUrl } from "@/lib/url";
 import {
   EXPERIENCIAS,
   PRESUPUESTOS,
@@ -176,19 +178,102 @@ export async function addPortfolioItemAction(input: {
   if (session?.user?.role !== "freelancer" || !session.user.professionalId) {
     return { ok: false, error: "No autorizado" };
   }
-  if (!input.titulo || !input.descripcion) {
+  const professionalId = session.user.professionalId;
+  const titulo = input.titulo.trim();
+  const descripcion = input.descripcion.trim();
+  const enlace = (input.enlace ?? "").trim();
+
+  if (!titulo || !descripcion) {
     return { ok: false, error: "Faltan datos obligatorios" };
   }
+  if (titulo.length > PORTFOLIO_LIMITS.proyectoTitulo) {
+    return { ok: false, error: `El título no puede superar ${PORTFOLIO_LIMITS.proyectoTitulo} caracteres` };
+  }
+  if (descripcion.length > PORTFOLIO_LIMITS.proyectoDescripcion) {
+    return { ok: false, error: `La descripción no puede superar ${PORTFOLIO_LIMITS.proyectoDescripcion} caracteres` };
+  }
+  if (enlace.length > PORTFOLIO_LIMITS.enlace) {
+    return { ok: false, error: `El link no puede superar ${PORTFOLIO_LIMITS.enlace} caracteres` };
+  }
+
+  let enlaceFinal: string | undefined;
+  if (enlace) {
+    const normalized = normalizeExternalUrl(enlace);
+    if (!normalized) {
+      return { ok: false, error: "El link no parece una URL válida (ej. https://tusitio.com)" };
+    }
+    enlaceFinal = normalized;
+  }
+
+  const count = await data.countPortfolioItems(professionalId);
+  if (count >= PORTFOLIO_LIMITS.proyectosMax) {
+    return { ok: false, error: `Llegaste al máximo de ${PORTFOLIO_LIMITS.proyectosMax} proyectos` };
+  }
+
   await data.createPortfolioItem({
-    professionalId: session.user.professionalId,
-    titulo: input.titulo,
-    descripcion: input.descripcion,
+    professionalId,
+    titulo,
+    descripcion,
     imagenUrl: input.imagenUrl || undefined,
-    enlace: input.enlace || undefined,
+    enlace: enlaceFinal,
+  });
+  revalidatePath("/cuenta");
+  revalidatePath(`/red/${professionalId}`);
+  return { ok: true };
+}
+
+/** Guarda la descripción general y las (hasta 3) imágenes del portfolio. */
+export async function savePortfolioAction(input: {
+  descripcion: string;
+  imagenes: string[];
+}) {
+  const session = await auth();
+  if (session?.user?.role !== "freelancer" || !session.user.professionalId) {
+    return { ok: false, error: "No autorizado" };
+  }
+  const descripcion = input.descripcion.trim();
+  if (descripcion.length > PORTFOLIO_LIMITS.descripcion) {
+    return { ok: false, error: `La descripción no puede superar ${PORTFOLIO_LIMITS.descripcion} caracteres` };
+  }
+  const imagenes = input.imagenes.filter(Boolean).slice(0, PORTFOLIO_LIMITS.imagenesMax);
+
+  await data.updateProfessional(session.user.professionalId, {
+    portfolioDescripcion: descripcion || null,
+    portfolioImagenes: imagenes,
   });
   revalidatePath("/cuenta");
   revalidatePath(`/red/${session.user.professionalId}`);
   return { ok: true };
+}
+
+/** Sube una imagen del portfolio (galería o proyecto) y devuelve su URL. */
+export async function uploadPortfolioImageAction(formData: FormData) {
+  const session = await auth();
+  if (session?.user?.role !== "freelancer" || !session.user.professionalId) {
+    return { ok: false, error: "No autorizado" };
+  }
+  const professionalId = session.user.professionalId;
+  const file = formData.get("file");
+  if (!(file instanceof File)) {
+    return { ok: false, error: "No se recibió ningún archivo" };
+  }
+
+  const okRate = await checkRateLimit(`portfolio-upload:${professionalId}`, {
+    max: 30,
+    windowMs: 60 * 60 * 1000,
+  });
+  if (!okRate) {
+    return { ok: false, error: "Demasiados intentos. Probá de nuevo más tarde." };
+  }
+
+  try {
+    const url = await uploadProfilePhoto(file, `portfolio/professional-${professionalId}`);
+    return { ok: true, url };
+  } catch (e) {
+    if (e instanceof InvalidPhotoError) return { ok: false, error: e.message };
+    console.error("[upload] error al subir imagen de portfolio:", e);
+    return { ok: false, error: "No se pudo subir la imagen. Probá de nuevo." };
+  }
 }
 
 export async function deletePortfolioItemAction(itemId: string) {
@@ -234,6 +319,44 @@ export async function uploadFreelancerPhotoAction(formData: FormData) {
     console.error("[upload] error al subir foto de freelancer:", e);
     return { ok: false, error: "No se pudo subir la imagen. Probá de nuevo." };
   }
+}
+
+const SOCIAL_LABELS: Record<string, string> = {
+  instagram: "Instagram",
+  facebook: "Facebook",
+  linkedin: "LinkedIn",
+};
+
+/** Guarda los links de redes del freelancer (normaliza y valida cada URL). */
+export async function updateFreelancerSocialsAction(input: {
+  instagram: string;
+  facebook: string;
+  linkedin: string;
+}) {
+  const session = await auth();
+  if (session?.user?.role !== "freelancer" || !session.user.professionalId) {
+    return { ok: false, error: "No autorizado" };
+  }
+  const fields: Record<string, string | null> = {};
+  for (const key of ["instagram", "facebook", "linkedin"] as const) {
+    const val = input[key].trim();
+    if (!val) {
+      fields[key] = null;
+      continue;
+    }
+    const url = normalizeExternalUrl(val);
+    if (!url) {
+      return {
+        ok: false,
+        error: `El link de ${SOCIAL_LABELS[key]} no parece una URL válida (ej. https://…)`,
+      };
+    }
+    fields[key] = url;
+  }
+  await data.updateProfessional(session.user.professionalId, fields);
+  revalidatePath("/cuenta");
+  revalidatePath(`/red/${session.user.professionalId}`);
+  return { ok: true };
 }
 
 // --- Perfil de empresa ---------------------------------------------------------

@@ -60,6 +60,64 @@ Assets/                 # material de marca original (fuente de verdad)
 - **Match semi-automatizado por reglas** (no IA). La IA es una etapa futura.
 - Animaciones de reveal son **resilientes sin JS** (ver `components/ui/Reveal.tsx`).
 
+## Reglas de negocio (fuente de verdad)
+
+Reglas de dominio vigentes. Si cambia el comportamiento, **actualizar acá**.
+
+### Roles y acceso
+- Tres roles: `freelancer`, `empresa`, `admin`. Solo `admin` entra a `/admin`.
+- **`/diagnostico` es solo para empresas con cuenta y email verificado.** Un
+  anónimo se redirige a `/crear-cuenta`; un logueado no-empresa (freelancer/admin)
+  a su panel. Como el login bloquea cuentas sin verificar, toda sesión activa ya
+  implica email verificado (no hay chequeo extra). Lógica en `src/app/diagnostico/page.tsx`.
+- El CTA "Solicitar diagnóstico" (Nav/Hero/CTABand) **no se muestra a un freelancer
+  logueado** (temporal — se reemplazará por otra acción). Se controla con el flag
+  `showDiagnostico` desde `src/app/page.tsx`.
+
+### Ciclo de vida de cuenta (`User`: `lastLoginAt`, `disabledAt`, `deletedAt`, `inactivityWarnedAt`)
+Cuatro ejes **independientes**, no mezclar:
+- **Moderación** (`Professional.estado`: pendiente/aprobado/rechazado/oculto) — la decide el admin.
+- **Deshabilitado manual** (`disabledAt`): el usuario se oculta a propósito desde
+  `/cuenta`. **Loguear NO lo reactiva**; requiere acción explícita (pantalla de
+  reactivar). Deja de ser visible para otros.
+- **Inactivo** (derivado de `lastLoginAt`, NO es un estado): si no loguea hace
+  **>30 días**, desaparece del directorio. Al loguear, `lastLoginAt` se refresca
+  (en `src/auth.ts`) y **reaparece solo**. Sin cron.
+- **Eliminado** (`deletedAt`): **soft-delete + anonimización** (nombre/email/foto/
+  redes en `User` y `Professional`/`Company`), libera el email para re-registro,
+  conserva el esqueleto relacional (matches/leads/contactos). Irreversible desde la
+  UI. No hay hard-delete. `data.softDeleteUser`.
+
+### Visibilidad en el directorio `/red`
+Un perfil es visible ⟺ `estado === "aprobado"` **Y** su usuario (si tiene) está
+activo: `deletedAt: null` **Y** `disabledAt: null` **Y** `lastLoginAt >= hoy-30d`.
+Implementado en `data.visibleByUserFilter()` (aplica a `listApprovedProfessionals`
+y `getApprovedProfessional`, que también alimentan el ranking de match y similares).
+
+### Enforcement de sesión (punto ciego JWT)
+Las sesiones son **JWT sin revocación** (viven hasta 30 días). Para que deshabilitar/
+eliminar corte el acceso al instante, `src/lib/account-guard.ts` (`requireAccount()`)
+chequea en DB en `/cuenta` y `/red`: eliminada → a `/login`; deshabilitada → a
+reactivar. Una revocación real requeriría migrar a sesiones en DB.
+
+### Contraseña
+- **Recuperar** (olvidé): `/recuperar-contrasena` → email → `/restablecer-contrasena`.
+- **Cambiar** (logueado, con la actual): bloque en `/cuenta` → `changePasswordAction`.
+
+### Indexación en buscadores (sitio en construcción)
+Indexación **APAGADA por defecto**: `noindex` global (`src/app/layout.tsx`) +
+`robots.txt` disallow (`src/app/robots.ts`), ambos gated por `ALLOW_INDEXING`.
+**Al lanzar:** setear `ALLOW_INDEXING="true"` en Vercel y re-deployar. (No confundir
+con `NEXT_PUBLIC_SITE_URL`, que es solo para armar links de mails, no afecta SEO.)
+
+### Job diario (cron, `/api/cron/daily`, 09:00 UTC, protegido por `CRON_SECRET`)
+Un solo endpoint idempotente que corre: (1) aviso de inactividad a los ≥25 días
+(antes de ocultarse a los 30; `inactivityWarnedAt` evita repetir, se limpia al
+loguear), (2) limpieza de tokens vencidos + rate-limit viejo, (3) recordatorio de
+contactos sin responder ≥3 días, (4) digest al admin de moderación pendiente ≥2
+días. **Vercel Cron solo dispara en producción.** El core de inactividad NO depende
+del cron (es derivado); el cron es solo la capa de avisos/higiene.
+
 ## Estado por fases
 
 - [x] **Fase 1 — Landing institucional** (pública, una página). Terminada.
@@ -72,10 +130,12 @@ Assets/                 # material de marca original (fuente de verdad)
       `solicitarMatchAction` que crea la solicitud con candidatos rankeados.
       Emails transaccionales (Resend) en `src/lib/email.ts`.
 - [ ] **Fase 4 (futuro) — Comunidad/membresía. Luego, capa de IA.**
+- **Resend: dominio `sinnergiastudio.com.ar` VERIFICADO** (DKIM/SPF/MX en DonWeb).
+  `EMAIL_FROM="Sinnergia Studio <estudio@sinnergiastudio.com.ar>"`. Ya se mandan
+  mails a externos (verificación, reset, avisos, cron).
 - Pendiente de pulido (post-funcionalidad): subida real de imágenes de portfolio
   (la foto de perfil y el logo de empresa ya suben de verdad, vía Vercel Blob —
-  falta cargar `BLOB_READ_WRITE_TOKEN`, ver `TODO.md`), verificar dominio en
-  Resend para mails a externos, y bugs visuales de la landing.
+  falta cargar `BLOB_READ_WRITE_TOKEN`, ver `TODO.md`), y bugs visuales de la landing.
 
 ## Integración de base de datos (implementada)
 
@@ -106,7 +166,8 @@ Assets/                 # material de marca original (fuente de verdad)
 ### Runbook (correr en la máquina del usuario, una vez)
 
 ```bash
-cp .env.example .env            # completar DATABASE_URL, DIRECT_URL, AUTH_SECRET, ADMIN_*
+cp .env.example .env            # completar DATABASE_URL, DIRECT_URL, AUTH_SECRET, ADMIN_*,
+                                # RESEND_API_KEY, EMAIL_FROM, CRON_SECRET, NEXT_PUBLIC_SITE_URL
 npm install                     # postinstall corre `prisma generate`
 npm run db:push                 # crea las tablas en Supabase (sin shadow DB)
 npm run db:seed                 # carga datos + usuarios (admin, freelancer/empresa demo)

@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { requireAccount } from "@/lib/account-guard";
 import { AccountTopbar } from "@/components/account/AccountTopbar";
 import { Container } from "@/components/ui/Container";
 import { Avatar } from "@/components/directory/Avatar";
 import { ContactarFreelancerButton } from "@/components/directory/ContactarFreelancerButton";
 import { ProfileCard } from "@/components/directory/ProfileCard";
-import { Placeholder } from "@/components/ui/Placeholder";
+import { ClickableImage } from "@/components/ui/ImageLightbox";
+import { PortfolioProjects } from "@/components/directory/PortfolioProjects";
+import { SocialIcons } from "@/components/directory/SocialIcons";
 import {
   getApprovedProfessional,
   listApprovedProfessionals,
@@ -24,8 +26,9 @@ export default async function PerfilPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [p, session] = await Promise.all([getApprovedProfessional(id), auth()]);
-  if (!session?.user) redirect("/login");
+  const { session, disabled } = await requireAccount();
+  if (disabled) redirect("/cuenta");
+  const p = await getApprovedProfessional(id);
   if (!p) notFound();
   const canContact = session.user.role === "empresa";
   const companyId = session.user.companyId;
@@ -77,8 +80,6 @@ export default async function PerfilPage({
                   <span>{p.modalidad}</span>
                   <span>·</span>
                   <span>{p.experiencia}</span>
-                  <span>·</span>
-                  <span>{p.honorarios}</span>
                   {p.ubicacion && (
                     <>
                       <span>·</span>
@@ -87,6 +88,9 @@ export default async function PerfilPage({
                   )}
                   <span>·</span>
                   <span>{p.disponibilidad}</span>
+                </div>
+                <div className="mt-3">
+                  <SocialIcons socials={p} />
                 </div>
               </div>
             </div>
@@ -112,52 +116,40 @@ export default async function PerfilPage({
           </div>
 
           {/* Links */}
-          {(p.portfolioUrl || p.linkedin || p.instagram) && (
-            <div className="mt-7 flex flex-wrap gap-4 border-t border-ink/10 pt-6 text-sm">
-              {p.portfolioUrl && (
-                <a href={p.portfolioUrl} target="_blank" rel="noreferrer" className="link-underline text-ink">
-                  Portfolio
-                </a>
-              )}
-              {p.linkedin && <span className="text-ink/60">LinkedIn: {p.linkedin}</span>}
-              {p.instagram && <span className="text-ink/60">{p.instagram}</span>}
+          {p.portfolioUrl && (
+            <div className="mt-7 border-t border-ink/10 pt-6 text-sm">
+              <a href={p.portfolioUrl} target="_blank" rel="noreferrer" className="link-underline text-ink">
+                Portfolio
+              </a>
             </div>
           )}
 
           {/* Portfolio */}
-          {p.portfolio.length > 0 && (
+          {(p.portfolioDescripcion || p.portfolioImagenes.length > 0 || p.portfolio.length > 0) && (
             <div className="mt-8 border-t border-ink/10 pt-7">
               <h2 className="mb-5 text-sm font-medium uppercase tracking-[0.1em] text-ink/50">
                 Portfolio
               </h2>
-              <div className="grid gap-6 sm:grid-cols-2">
-                {p.portfolio.map((item) => (
-                  <article key={item.id}>
-                    {item.imagenUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={item.imagenUrl}
-                        alt={item.titulo}
-                        className="aspect-[4/3] w-full border border-ink/10 object-cover"
-                      />
-                    ) : (
-                      <Placeholder label={item.titulo} ratio="4 / 3" />
-                    )}
-                    <h3 className="mt-3 font-medium">{item.titulo}</h3>
-                    <p className="mt-1 text-sm text-ink/60">{item.descripcion}</p>
-                    {item.enlace && (
-                      <a
-                        href={item.enlace}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="link-underline mt-1 inline-block text-sm text-ink"
-                      >
-                        Ver proyecto →
-                      </a>
-                    )}
-                  </article>
-                ))}
-              </div>
+
+              {p.portfolioDescripcion && (
+                <p className="mb-6 max-w-2xl whitespace-pre-line text-ink/75">
+                  {p.portfolioDescripcion}
+                </p>
+              )}
+
+              {p.portfolioImagenes.length > 0 && (
+                <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {p.portfolioImagenes.map((url) => (
+                    <ClickableImage
+                      key={url}
+                      src={url}
+                      className="aspect-square w-full border border-ink/10"
+                    />
+                  ))}
+                </div>
+              )}
+
+              {p.portfolio.length > 0 && <PortfolioProjects items={p.portfolio} />}
             </div>
           )}
         </div>

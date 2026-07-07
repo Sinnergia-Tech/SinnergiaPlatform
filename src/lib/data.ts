@@ -10,6 +10,38 @@ export function findUserByEmail(email: string) {
   return prisma.user.findUnique({ where: { email } });
 }
 
+// --- Ciclo de vida de cuenta ------------------------------------------------
+
+/** Una cuenta se considera inactiva si no loguea hace más de 30 días. */
+export const INACTIVITY_DAYS = 30;
+/** Se avisa por email a los 25 días (antes de quedar oculto a los 30). */
+export const INACTIVITY_WARN_DAYS = 25;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function daysAgo(days: number) {
+  return new Date(Date.now() - days * DAY_MS);
+}
+
+/**
+ * Filtro Prisma para "el usuario detrás de este perfil está activo": no
+ * eliminado, no deshabilitado manualmente y con login reciente. Los perfiles
+ * sin cuenta (user null) se consideran visibles (los crea el admin/seed).
+ */
+function visibleByUserFilter() {
+  return {
+    OR: [
+      { user: null },
+      {
+        user: {
+          deletedAt: null,
+          disabledAt: null,
+          lastLoginAt: { gte: daysAgo(INACTIVITY_DAYS) },
+        },
+      },
+    ],
+  };
+}
+
 /**
  * Capa de acceso a datos (server-only). Reemplaza a mock-data.
  * Las mutaciones se exponen vía server actions en src/lib/actions.ts.
@@ -25,17 +57,17 @@ export function getProfessional(id: string) {
   return prisma.professional.findUnique({ where: { id } });
 }
 
-/** Perfiles aprobados (visibles en el directorio público). */
+/** Perfiles aprobados y con cuenta activa (visibles en el directorio público). */
 export function listApprovedProfessionals() {
   return prisma.professional.findMany({
-    where: { estado: "aprobado" },
+    where: { estado: "aprobado", ...visibleByUserFilter() },
     orderBy: [{ destacado: "desc" }, { createdAt: "desc" }],
   });
 }
 
 export function getApprovedProfessional(id: string) {
   return prisma.professional.findFirst({
-    where: { id, estado: "aprobado" },
+    where: { id, estado: "aprobado", ...visibleByUserFilter() },
     include: { portfolio: { orderBy: { orden: "asc" } } },
   });
 }
@@ -365,6 +397,10 @@ export function createPortfolioItem(input: {
   return prisma.portfolioItem.create({ data: input });
 }
 
+export function countPortfolioItems(professionalId: string) {
+  return prisma.portfolioItem.count({ where: { professionalId } });
+}
+
 /** Borra un ítem sólo si pertenece al profesional dueño de la sesión. */
 export async function deletePortfolioItem(id: string, professionalId: string) {
   const { count } = await prisma.portfolioItem.deleteMany({
@@ -591,4 +627,170 @@ export async function markContactRead(id: string, professionalId: string) {
 
 export function countUnreadContacts(professionalId: string) {
   return prisma.contact.count({ where: { professionalId, readAt: null } });
+}
+
+// --- Estado de cuenta (deshabilitar / reactivar / eliminar) -----------------
+
+/** Flags de estado para el enforcement (punto ciego de sesiones JWT). */
+export function getAccountFlags(userId: string) {
+  return prisma.user.findUnique({
+    where: { id: userId },
+    select: { disabledAt: true, deletedAt: true },
+  });
+}
+
+/** Deshabilitación manual: el usuario se oculta a propósito. */
+export function disableUser(userId: string) {
+  return prisma.user.update({
+    where: { id: userId },
+    data: { disabledAt: new Date() },
+  });
+}
+
+/** Reactivación explícita: limpia la baja manual y cuenta como actividad. */
+export function reactivateUser(userId: string) {
+  return prisma.user.update({
+    where: { id: userId },
+    data: { disabledAt: null, lastLoginAt: new Date(), inactivityWarnedAt: null },
+  });
+}
+
+/**
+ * Soft-delete + anonimización. Marca la cuenta como eliminada, libera el email
+ * (para re-registro) y borra los datos personales del User y de su
+ * Professional/Company. Conserva el esqueleto relacional (matches, leads,
+ * contactos) para no romper el historial de negocio.
+ */
+export async function softDeleteUser(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, professionalId: true, companyId: true, deletedAt: true },
+  });
+  if (!user || user.deletedAt) return;
+
+  const placeholder = `deleted+${userId}@deleted.invalid`;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: userId },
+      data: {
+        deletedAt: new Date(),
+        disabledAt: new Date(),
+        email: placeholder,
+        nombre: "Cuenta eliminada",
+      },
+    });
+
+    if (user.professionalId) {
+      await tx.professional.update({
+        where: { id: user.professionalId },
+        data: {
+          nombre: "Cuenta eliminada",
+          email: placeholder,
+          whatsapp: null,
+          linkedin: null,
+          instagram: null,
+          portfolioUrl: null,
+          fotoUrl: null,
+          ubicacion: null,
+          descripcion: "",
+          estado: "oculto",
+          destacado: false,
+        },
+      });
+    }
+
+    if (user.companyId) {
+      await tx.company.update({
+        where: { id: user.companyId },
+        data: {
+          nombre: "Cuenta eliminada",
+          contacto: "",
+          email: placeholder,
+          telefono: null,
+          sitioWeb: null,
+          descripcion: null,
+          logoUrl: null,
+          linkedin: null,
+          instagram: null,
+          ubicacion: null,
+        },
+      });
+    }
+  });
+}
+
+// --- Tareas del job diario (cron) -------------------------------------------
+
+/**
+ * Cuentas verificadas, activas y sin aviso previo que llevan ≥25 días sin
+ * loguear. Se les manda el nudge de inactividad (y luego se marcan como avisadas).
+ */
+export function findUsersToWarnForInactivity() {
+  return prisma.user.findMany({
+    where: {
+      deletedAt: null,
+      disabledAt: null,
+      emailVerified: { not: null },
+      inactivityWarnedAt: null,
+      lastLoginAt: { lte: daysAgo(INACTIVITY_WARN_DAYS) },
+    },
+    select: { id: true, email: true, nombre: true },
+  });
+}
+
+export function markInactivityWarned(userIds: string[]) {
+  return prisma.user.updateMany({
+    where: { id: { in: userIds } },
+    data: { inactivityWarnedAt: new Date() },
+  });
+}
+
+/** Limpieza de tokens vencidos/usados y hits de rate-limit viejos. */
+export async function purgeExpiredAuthArtifacts() {
+  const now = new Date();
+  const [verif, reset, rate] = await prisma.$transaction([
+    prisma.emailVerificationToken.deleteMany({
+      where: { OR: [{ expiresAt: { lt: now } }, { usedAt: { not: null } }] },
+    }),
+    prisma.passwordResetToken.deleteMany({
+      where: { OR: [{ expiresAt: { lt: now } }, { usedAt: { not: null } }] },
+    }),
+    // Las ventanas de rate-limit son ≤1h; 24h de retención es de sobra.
+    prisma.rateLimitHit.deleteMany({ where: { createdAt: { lt: daysAgo(1) } } }),
+  ]);
+  return { verificationTokens: verif.count, resetTokens: reset.count, rateLimitHits: rate.count };
+}
+
+/**
+ * Solicitudes de contacto pendientes, no leídas por el freelancer, cuyo último
+ * aviso fue hace ≥3 días. Para recordarle que tiene una empresa esperando.
+ */
+export function findContactsNeedingReminder() {
+  return prisma.contact.findMany({
+    where: {
+      status: "pending",
+      readAt: null,
+      lastNotificationSentAt: { lt: daysAgo(3) },
+      // Solo freelancers con cuenta activa (no eliminada / deshabilitada).
+      professional: { user: { deletedAt: null, disabledAt: null } },
+    },
+    include: { professional: true, company: true },
+  });
+}
+
+export function markContactsReminded(contactIds: string[]) {
+  return prisma.contact.updateMany({
+    where: { id: { in: contactIds } },
+    data: { lastNotificationSentAt: new Date() },
+  });
+}
+
+/** Profesionales en moderación hace ≥2 días (para el digest al admin). */
+export function findStalePendingProfessionals() {
+  return prisma.professional.findMany({
+    where: { estado: "pendiente", createdAt: { lt: daysAgo(2) } },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, nombre: true, titular: true, createdAt: true },
+  });
 }

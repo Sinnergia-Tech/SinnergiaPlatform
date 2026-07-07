@@ -1,7 +1,7 @@
 import { Container } from "./ui/Container";
 import { Button } from "./ui/Button";
 
-export function Hero() {
+export function Hero({ showDiagnostico = true }: { showDiagnostico?: boolean }) {
   return (
     <section
       id="top"
@@ -45,9 +45,11 @@ export function Hero() {
           className="fade-up mt-12 flex flex-col gap-4 sm:flex-row"
           style={{ animationDelay: "0.44s" }}
         >
-          <Button href="/diagnostico" tone="onDark" variant="solid">
-            Solicitar diagnóstico
-          </Button>
+          {showDiagnostico && (
+            <Button href="/diagnostico" tone="onDark" variant="solid">
+              Solicitar diagnóstico
+            </Button>
+          )}
           <Button href="/sumate" tone="onDark" variant="outline">
             Sumarme a la red
           </Button>

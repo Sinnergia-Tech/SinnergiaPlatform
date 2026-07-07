@@ -21,10 +21,15 @@ export default async function Home() {
       }
     : null;
 
+  // El diagnóstico es un producto para empresas. A un freelancer logueado no
+  // le mostramos ese CTA (temporal — más adelante seguramente lo reemplacemos
+  // por otra acción). Anónimos y empresas sí lo ven.
+  const showDiagnostico = session?.user?.role !== "freelancer";
+
   return (
     <main>
-      <Nav account={account} />
-      <Hero />
+      <Nav account={account} showDiagnostico={showDiagnostico} />
+      <Hero showDiagnostico={showDiagnostico} />
       <Problema />
       <ComoFunciona />
       <Servicios />
@@ -33,7 +38,7 @@ export default async function Home() {
       <Portfolio />
       <QuienesSomos />
       <Manifiesto />
-      <CTABand />
+      <CTABand showDiagnostico={showDiagnostico} />
       <Footer />
     </main>
   );
