@@ -8,9 +8,10 @@ import { Container } from "@/components/ui/Container";
 import {
   listContactsForCompany,
   listContactsForFreelancer,
+  listMatchOpportunities,
   countUnreadContacts,
 } from "@/lib/data";
-import { CONTACT_STATUS_LABEL } from "@/lib/catalogs";
+import { CONTACT_STATUS_LABEL, ESTADO_MATCH_LABEL } from "@/lib/catalogs";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,10 @@ export default async function ContactosPage() {
     role === "freelancer" && professionalId
       ? await listContactsForFreelancer(professionalId)
       : null;
+  const oportunidades =
+    role === "freelancer" && professionalId
+      ? await listMatchOpportunities(professionalId)
+      : [];
 
   return (
     <div className="min-h-screen bg-smoke">
@@ -133,6 +138,46 @@ export default async function ContactosPage() {
               </ul>
             )}
           </div>
+
+          {role === "freelancer" && (
+            <section className="mt-8 border border-ink/10 bg-paper">
+              <div className="border-b border-ink/10 px-6 py-4">
+                <h2 className="font-semibold">Tus oportunidades de match</h2>
+                <p className="mt-0.5 text-sm text-ink/50">
+                  Empresas donde Sinnergia te propuso como candidato.
+                </p>
+              </div>
+              <ul>
+                {oportunidades.length === 0 && (
+                  <li className="px-6 py-6 text-sm text-ink/45">
+                    Todavía no tenés oportunidades. Cuando aprueben tu perfil vas a
+                    empezar a aparecer en los matches.
+                  </li>
+                )}
+                {oportunidades.map((op, i) => (
+                  <li
+                    key={i}
+                    className="flex flex-wrap items-center justify-between gap-3 border-b border-ink/5 px-6 py-4 last:border-0"
+                  >
+                    <div>
+                      <div className="font-medium">{op.matchRequest.company?.nombre}</div>
+                      <div className="text-sm text-ink/50">{op.matchRequest.contexto}</div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {op.seleccionado ? (
+                        <Badge variant="solid">Seleccionado</Badge>
+                      ) : (
+                        <Badge variant="outline">En evaluación</Badge>
+                      )}
+                      <span className="text-xs text-ink/40">
+                        {ESTADO_MATCH_LABEL[op.matchRequest.estado]}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </Container>
       </main>
     </div>

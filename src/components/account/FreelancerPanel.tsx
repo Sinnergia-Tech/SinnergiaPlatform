@@ -1,11 +1,10 @@
 import { Badge, estadoVariant } from "@/components/admin/ui";
 import { PortfolioManager, type PortfolioItem } from "@/components/account/PortfolioManager";
 import { PhotoUploadField } from "@/components/account/PhotoUploadField";
-import { SocialLinksEditor } from "@/components/account/SocialLinksEditor";
-import { SocialIcons } from "@/components/directory/SocialIcons";
+import { EditPresentationButton } from "@/components/account/EditPresentationButton";
 import { uploadFreelancerPhotoAction } from "@/lib/actions";
-import { ESTADO_PROFESIONAL_LABEL, ESTADO_MATCH_LABEL } from "@/lib/catalogs";
-import type { EstadoMatch, EstadoProfesional } from "@/lib/types";
+import { ESTADO_PROFESIONAL_LABEL } from "@/lib/catalogs";
+import type { EstadoProfesional } from "@/lib/types";
 
 const estadoAyuda: Record<string, string> = {
   pendiente: "Tu perfil está en revisión. Te avisamos cuando lo aprobemos.",
@@ -15,6 +14,7 @@ const estadoAyuda: Record<string, string> = {
 };
 
 type Prof = {
+  id: string;
   nombre: string;
   titular: string;
   descripcion: string;
@@ -33,19 +33,10 @@ type Prof = {
   portfolio: PortfolioItem[];
 };
 
-type Op = {
-  seleccionado: boolean;
-  matchRequest: {
-    contexto: string;
-    estado: EstadoMatch;
-    company: { nombre: string } | null;
-  };
-};
-
 export function FreelancerPanel({
   data,
 }: {
-  data: { professional: Prof | null; oportunidades: Op[] };
+  data: { professional: Prof | null };
 }) {
   const p = data.professional;
   if (!p) return <p className="text-ink/50">No encontramos tu perfil.</p>;
@@ -69,12 +60,27 @@ export function FreelancerPanel({
       <section className="border border-ink/10 bg-paper p-6">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-sm font-medium uppercase tracking-[0.12em] text-ink/50">Tu perfil público</h2>
-          <button
-            disabled
-            className="cursor-not-allowed border border-ink/20 px-4 py-2 text-xs font-medium uppercase tracking-[0.1em] text-ink/40"
-          >
-            Editar (próximamente)
-          </button>
+          <div className="flex items-center gap-2">
+            <a
+              href={`/red/${p.id}`}
+              target="_blank"
+              rel="noreferrer"
+              className="border border-ink px-4 py-2 text-xs font-medium uppercase tracking-[0.1em] text-ink transition-colors hover:bg-ink hover:text-paper"
+            >
+              Visualizar
+            </a>
+            <EditPresentationButton
+              initial={{
+                nombre: p.nombre,
+                titular: p.titular,
+                descripcion: p.descripcion,
+                roles: p.roles,
+                experiencia: p.experiencia,
+                modalidad: p.modalidad,
+                disponibilidad: p.disponibilidad,
+              }}
+            />
+          </div>
         </div>
 
         <div className="flex flex-col gap-6 sm:flex-row">
@@ -103,53 +109,15 @@ export function FreelancerPanel({
               <Meta label="Modalidad" value={p.modalidad} />
               <Meta label="Disponibilidad" value={p.disponibilidad} />
             </div>
-
-            <div className="mt-5">
-              <SocialIcons socials={p} size={20} />
-            </div>
           </div>
         </div>
       </section>
-
-      <SocialLinksEditor
-        initial={{ instagram: p.instagram, facebook: p.facebook, linkedin: p.linkedin }}
-      />
 
       <PortfolioManager
         descripcion={p.portfolioDescripcion}
         imagenes={p.portfolioImagenes}
         items={p.portfolio}
       />
-
-      <section className="border border-ink/10 bg-paper">
-        <div className="border-b border-ink/10 px-6 py-4">
-          <h2 className="font-semibold">Tus oportunidades de match</h2>
-          <p className="mt-0.5 text-sm text-ink/50">Empresas donde Sinnergia te propuso como candidato.</p>
-        </div>
-        <ul>
-          {data.oportunidades.length === 0 && (
-            <li className="px-6 py-6 text-sm text-ink/45">
-              Todavía no tenés oportunidades. Cuando aprueben tu perfil vas a empezar a aparecer en los matches.
-            </li>
-          )}
-          {data.oportunidades.map((op, i) => (
-            <li key={i} className="flex flex-wrap items-center justify-between gap-3 border-b border-ink/5 px-6 py-4 last:border-0">
-              <div>
-                <div className="font-medium">{op.matchRequest.company?.nombre}</div>
-                <div className="text-sm text-ink/50">{op.matchRequest.contexto}</div>
-              </div>
-              <div className="flex items-center gap-3">
-                {op.seleccionado ? (
-                  <Badge variant="solid">Seleccionado</Badge>
-                ) : (
-                  <Badge variant="outline">En evaluación</Badge>
-                )}
-                <span className="text-xs text-ink/40">{ESTADO_MATCH_LABEL[op.matchRequest.estado]}</span>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>
     </div>
   );
 }

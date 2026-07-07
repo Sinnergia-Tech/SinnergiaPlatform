@@ -13,6 +13,7 @@ import { checkOriginalImage } from "@/lib/image-constraints";
 import { compressImage } from "@/lib/image-compress";
 import { ClickableImage } from "@/components/ui/ImageLightbox";
 import { PortfolioProjects } from "@/components/directory/PortfolioProjects";
+import { useToast } from "@/components/ui/Toast";
 
 export type PortfolioItem = {
   id: string;
@@ -49,6 +50,7 @@ export function PortfolioManager({
   items: PortfolioItem[];
 }) {
   const router = useRouter();
+  const toast = useToast();
 
   // --- Descripción general + galería ---
   const [desc, setDesc] = useState(descripcion ?? "");
@@ -68,7 +70,10 @@ export function PortfolioManager({
     setSavingDesc(false);
     if (res.ok) {
       setDescSaved(true);
+      toast.success("Descripción guardada");
       router.refresh();
+    } else {
+      toast.error(res.error ?? "No se pudo guardar la descripción.");
     }
   };
 
@@ -162,6 +167,7 @@ export function PortfolioManager({
     if (res.ok) {
       resetForm();
       setShowForm(false);
+      toast.success("Proyecto agregado");
       router.refresh();
     } else {
       setError(res.error ?? "No se pudo agregar el proyecto.");
@@ -170,9 +176,14 @@ export function PortfolioManager({
 
   const removeProject = async (id: string) => {
     setDeletingId(id);
-    await deletePortfolioItemAction(id);
+    const res = await deletePortfolioItemAction(id);
     setDeletingId(null);
-    router.refresh();
+    if (res.ok) {
+      toast.success("Proyecto eliminado");
+      router.refresh();
+    } else {
+      toast.error(res.error ?? "No se pudo eliminar el proyecto.");
+    }
   };
 
   const projValid =

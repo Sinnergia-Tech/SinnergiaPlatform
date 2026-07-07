@@ -5,18 +5,15 @@ import { AccountTopbar } from "@/components/account/AccountTopbar";
 import { Container } from "@/components/ui/Container";
 import { Avatar } from "@/components/directory/Avatar";
 import { ContactarFreelancerButton } from "@/components/directory/ContactarFreelancerButton";
-import { ProfileCard } from "@/components/directory/ProfileCard";
 import { ClickableImage } from "@/components/ui/ImageLightbox";
 import { PortfolioProjects } from "@/components/directory/PortfolioProjects";
 import { SocialIcons } from "@/components/directory/SocialIcons";
 import {
   getApprovedProfessional,
-  listApprovedProfessionals,
+  getProfessionalWithPortfolio,
   findActiveContact,
-  listContactsForCompany,
   countUnreadContacts,
 } from "@/lib/data";
-import { rankProfessionals, queryFromProfessional } from "@/lib/matching";
 
 export const dynamic = "force-dynamic";
 
@@ -28,30 +25,23 @@ export default async function PerfilPage({
   const { id } = await params;
   const { session, disabled } = await requireAccount();
   if (disabled) redirect("/cuenta");
-  const p = await getApprovedProfessional(id);
+  // Vista previa del dueño: un freelancer puede ver su propio perfil como lo ve
+  // una empresa, aunque todavía no esté aprobado/visible en el directorio.
+  const isOwner =
+    session.user.role === "freelancer" && session.user.professionalId === id;
+  const p = isOwner
+    ? await getProfessionalWithPortfolio(id)
+    : await getApprovedProfessional(id);
   if (!p) notFound();
   const canContact = session.user.role === "empresa";
   const companyId = session.user.companyId;
 
-  const [approved, activeContact, companyContacts, unreadContacts] = await Promise.all([
-    listApprovedProfessionals(),
+  const [activeContact, unreadContacts] = await Promise.all([
     canContact && companyId ? findActiveContact(companyId, id) : null,
-    canContact && companyId ? listContactsForCompany(companyId) : [],
     session.user.role === "freelancer" && session.user.professionalId
       ? countUnreadContacts(session.user.professionalId)
       : 0,
   ]);
-  const { top: similares } = rankProfessionals(
-    approved.filter((x) => x.id !== id),
-    queryFromProfessional(p),
-    3
-  );
-  const contactStatusByProfessional = new Map<string, string>();
-  for (const c of companyContacts) {
-    if (c.status === "pending" || c.status === "accepted") {
-      contactStatusByProfessional.set(c.professionalId, c.status);
-    }
-  }
 
   return (
     <main className="min-h-screen bg-smoke">
@@ -61,9 +51,20 @@ export default async function PerfilPage({
       />
 
       <Container className="max-w-4xl py-10">
-        <Link href="/red" className="mb-6 inline-block text-sm text-ink/50 hover:text-ink">
-          ← Volver al directorio
-        </Link>
+        {isOwner ? (
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border border-ink/15 bg-paper px-5 py-3 text-sm">
+            <span className="text-ink/70">
+              👁 Vista previa — así ve tu perfil una empresa.
+            </span>
+            <Link href="/cuenta" className="link-underline text-ink">
+              Volver a mi cuenta
+            </Link>
+          </div>
+        ) : (
+          <Link href="/red" className="mb-6 inline-block text-sm text-ink/50 hover:text-ink">
+            ← Volver al directorio
+          </Link>
+        )}
 
         {/* Cabecera */}
         <div className="border border-ink/12 bg-paper p-8">
@@ -100,6 +101,17 @@ export default async function PerfilPage({
                   professionalId={p.id}
                   initialStatus={activeContact?.status}
                 />
+              </div>
+            )}
+            {isOwner && (
+              <div className="shrink-0 text-right">
+                <button
+                  disabled
+                  className="cursor-not-allowed border border-ink/25 px-6 py-3 text-sm font-medium uppercase tracking-[0.1em] text-ink/40"
+                >
+                  Contactar
+                </button>
+                <p className="mt-1.5 text-xs text-ink/40">Así lo ve una empresa</p>
               </div>
             )}
           </div>
@@ -153,23 +165,6 @@ export default async function PerfilPage({
             </div>
           )}
         </div>
-
-        {/* Perfiles similares */}
-        {similares.length > 0 && (
-          <div className="mt-12">
-            <h2 className="mb-4 text-lg font-semibold">Perfiles similares</h2>
-            <div className="grid gap-4 sm:grid-cols-3">
-              {similares.map((sc) => (
-                <ProfileCard
-                  key={sc.professional.id}
-                  p={sc.professional}
-                  canContact={canContact}
-                  contactStatus={contactStatusByProfessional.get(sc.professional.id)}
-                />
-              ))}
-            </div>
-          </div>
-        )}
       </Container>
     </main>
   );

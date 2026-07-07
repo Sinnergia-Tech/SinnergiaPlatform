@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ToastProvider } from "@/components/ui/Toast";
 
 // La indexación está APAGADA por defecto (sitio en construcción). Para permitir
 // que los buscadores indexen al lanzar: setear ALLOW_INDEXING="true" en Vercel
@@ -43,7 +44,7 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased" suppressHydrationWarning>
-        {children}
+        <ToastProvider>{children}</ToastProvider>
       </body>
     </html>
   );

@@ -4,6 +4,7 @@ import { AccountTopbar } from "@/components/account/AccountTopbar";
 import { FreelancerPanel } from "@/components/account/FreelancerPanel";
 import { EmpresaPanel } from "@/components/account/EmpresaPanel";
 import { AccountSettings } from "@/components/account/AccountSettings";
+import { SocialLinksEditor } from "@/components/account/SocialLinksEditor";
 import { ReactivateAccount } from "@/components/account/ReactivateAccount";
 import { Container } from "@/components/ui/Container";
 import { getFreelancerData, getEmpresaData, countUnreadContacts } from "@/lib/data";
@@ -32,6 +33,14 @@ export default async function CuentaPage() {
     );
   }
 
+  const freelancerData =
+    role === "freelancer" && professionalId
+      ? await getFreelancerData(professionalId)
+      : null;
+  const empresaData =
+    role === "empresa" && companyId ? await getEmpresaData(companyId) : null;
+  const prof = freelancerData?.professional;
+
   const unreadContacts =
     role === "freelancer" && professionalId
       ? await countUnreadContacts(professionalId)
@@ -42,11 +51,16 @@ export default async function CuentaPage() {
       <AccountTopbar user={{ nombre, rol: role }} unreadContacts={unreadContacts} />
       <main className="py-10">
         <Container className="max-w-[1000px] space-y-6">
-          {role === "freelancer" && professionalId && (
-            <FreelancerPanel data={await getFreelancerData(professionalId)} />
-          )}
-          {role === "empresa" && companyId && (
-            <EmpresaPanel company={await getEmpresaData(companyId)} />
+          {freelancerData && <FreelancerPanel data={freelancerData} />}
+          {empresaData && <EmpresaPanel company={empresaData} />}
+          {prof && (
+            <SocialLinksEditor
+              initial={{
+                instagram: prof.instagram,
+                facebook: prof.facebook,
+                linkedin: prof.linkedin,
+              }}
+            />
           )}
           <AccountSettings />
         </Container>

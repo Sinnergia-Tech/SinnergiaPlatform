@@ -48,9 +48,9 @@ export function PortfolioProjects({
               <div className="p-4">
                 <h4 className="font-medium">{item.titulo}</h4>
                 <p className="mt-1 line-clamp-2 text-sm text-ink/60">{item.descripcion}</p>
-                <span className="link-underline mt-2 inline-block text-xs text-ink">
-                  Ver proyecto →
-                </span>
+                <div className="mt-2 text-right">
+                  <span className="link-underline text-xs text-ink">Ver proyecto</span>
+                </div>
               </div>
             </button>
             {onDelete && (
@@ -124,14 +124,16 @@ function ProjectDetailModal({
           <h3 className="text-xl font-semibold">{project.titulo}</h3>
           <p className="mt-3 whitespace-pre-line text-ink/75">{project.descripcion}</p>
           {href && (
-            <a
-              href={href}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-6 inline-block border border-ink px-5 py-2.5 text-xs font-medium uppercase tracking-[0.1em] text-ink transition-colors hover:bg-ink hover:text-paper"
-            >
-              Ver proyecto ↗
-            </a>
+            <div className="mt-6 flex justify-end">
+              <a
+                href={href}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-block border border-ink px-5 py-2.5 text-xs font-medium uppercase tracking-[0.1em] text-ink transition-colors hover:bg-ink hover:text-paper"
+              >
+                Ver proyecto ↗
+              </a>
+            </div>
           )}
         </div>
       </div>

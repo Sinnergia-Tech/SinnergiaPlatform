@@ -321,6 +321,59 @@ export async function uploadFreelancerPhotoAction(formData: FormData) {
   }
 }
 
+/** Edición de la card de presentación del freelancer. */
+export async function updateFreelancerProfileAction(input: {
+  nombre: string;
+  titular: string;
+  descripcion: string;
+  roles: string[];
+  experiencia: string;
+  modalidad: string;
+  disponibilidad: string;
+}) {
+  const session = await auth();
+  if (session?.user?.role !== "freelancer" || !session.user.professionalId) {
+    return { ok: false, error: "No autorizado" };
+  }
+  const nombre = input.nombre.trim();
+  const titular = input.titular.trim();
+  const descripcion = input.descripcion.trim();
+
+  if (!nombre || !titular || !descripcion) {
+    return { ok: false, error: "Nombre, titular y descripción son obligatorios" };
+  }
+  if (nombre.length > 80) return { ok: false, error: "El nombre no puede superar 80 caracteres" };
+  if (titular.length > 80) return { ok: false, error: "El titular no puede superar 80 caracteres" };
+  if (descripcion.length > 500) return { ok: false, error: "La descripción no puede superar 500 caracteres" };
+
+  const roles = input.roles
+    .filter((r) => (ROLES as readonly string[]).includes(r))
+    .slice(0, 5);
+  if (roles.length === 0) return { ok: false, error: "Elegí al menos un rol" };
+  if (!(EXPERIENCIAS as readonly string[]).includes(input.experiencia)) {
+    return { ok: false, error: "Experiencia inválida" };
+  }
+  if (!(MODALIDADES as readonly string[]).includes(input.modalidad)) {
+    return { ok: false, error: "Modalidad inválida" };
+  }
+  if (!(DISPONIBILIDADES as readonly string[]).includes(input.disponibilidad)) {
+    return { ok: false, error: "Disponibilidad inválida" };
+  }
+
+  await data.updateProfessional(session.user.professionalId, {
+    nombre,
+    titular,
+    descripcion,
+    roles,
+    experiencia: input.experiencia,
+    modalidad: input.modalidad,
+    disponibilidad: input.disponibilidad,
+  });
+  revalidatePath("/cuenta");
+  revalidatePath(`/red/${session.user.professionalId}`);
+  return { ok: true };
+}
+
 const SOCIAL_LABELS: Record<string, string> = {
   instagram: "Instagram",
   facebook: "Facebook",

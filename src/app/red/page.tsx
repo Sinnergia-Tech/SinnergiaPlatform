@@ -102,13 +102,10 @@ export default async function RedPage({
               <p className="text-ink/50">Todavía no hay perfiles publicados.</p>
             ) : (
               <>
-                <div className="mb-4 flex items-baseline justify-between">
+                <div className="mb-4">
                   <h2 className="text-lg font-semibold">
                     {hasQuery ? "Más relevantes para tu búsqueda" : "Perfiles destacados"}
                   </h2>
-                  <span className="text-sm text-ink/45">
-                    {approved.length} perfiles en la red
-                  </span>
                 </div>
 
                 {/* Top 5 — grilla, evita cortar tarjetas en pantallas anchas */}

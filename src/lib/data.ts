@@ -72,6 +72,14 @@ export function getApprovedProfessional(id: string) {
   });
 }
 
+/** Perfil con portfolio SIN filtro de estado — para la vista previa del dueño. */
+export function getProfessionalWithPortfolio(id: string) {
+  return prisma.professional.findUnique({
+    where: { id },
+    include: { portfolio: { orderBy: { orden: "asc" } } },
+  });
+}
+
 /** Crea una solicitud de match con sus candidatos ya rankeados. */
 export function createMatchRequest(input: {
   companyId: string;
@@ -372,17 +380,20 @@ export async function toggleCandidate(matchId: string, professionalId: string) {
 // --- Cuenta (freelancer / empresa) ------------------------------------------
 
 export async function getFreelancerData(professionalId: string) {
-  const [professional, oportunidades] = await Promise.all([
-    prisma.professional.findUnique({
-      where: { id: professionalId },
-      include: { portfolio: { orderBy: { orden: "asc" } } },
-    }),
-    prisma.matchCandidate.findMany({
-      where: { professionalId },
-      include: { matchRequest: { include: { company: true } } },
-    }),
-  ]);
-  return { professional, oportunidades };
+  const professional = await prisma.professional.findUnique({
+    where: { id: professionalId },
+    include: { portfolio: { orderBy: { orden: "asc" } } },
+  });
+  return { professional };
+}
+
+/** Matches donde Sinnergia propuso a este freelancer como candidato. */
+export function listMatchOpportunities(professionalId: string) {
+  return prisma.matchCandidate.findMany({
+    where: { professionalId },
+    include: { matchRequest: { include: { company: true } } },
+    orderBy: { matchRequest: { createdAt: "desc" } },
+  });
 }
 
 // --- Portfolio (freelancer) --------------------------------------------------

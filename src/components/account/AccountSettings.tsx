@@ -8,6 +8,7 @@ import {
   deleteOwnAccountAction,
 } from "@/lib/account-actions";
 import { isPasswordValid, PASSWORD_HINT } from "@/lib/password-policy";
+import { useToast } from "@/components/ui/Toast";
 
 const inputCls =
   "w-full border border-ink/20 bg-paper px-4 py-3 text-sm text-ink outline-none transition-colors placeholder:text-ink/40 focus:border-ink";
@@ -29,6 +30,7 @@ export function AccountSettings() {
 }
 
 function ChangePasswordRow() {
+  const toast = useToast();
   const [open, setOpen] = useState(false);
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
@@ -50,10 +52,11 @@ function ChangePasswordRow() {
         confirmPassword: confirm,
       });
       if (res.ok) {
-        setMsg({ ok: true, text: "Contraseña actualizada ✓" });
+        toast.success("Contraseña actualizada");
         setCurrent("");
         setNext("");
         setConfirm("");
+        setOpen(false);
       } else {
         setMsg({ ok: false, text: res.error ?? "No se pudo cambiar la contraseña." });
       }
@@ -140,12 +143,14 @@ function ChangePasswordRow() {
 
 function DisableRow() {
   const router = useRouter();
+  const toast = useToast();
   const [confirmDisable, setConfirmDisable] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const disable = () =>
     startTransition(async () => {
       await disableOwnAccountAction();
+      toast.success("Cuenta deshabilitada");
       router.refresh();
     });
 

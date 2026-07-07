@@ -4,14 +4,17 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { reactivateOwnAccountAction } from "@/lib/account-actions";
 import { logoutAction } from "@/lib/auth-actions";
+import { useToast } from "@/components/ui/Toast";
 
 export function ReactivateAccount() {
   const router = useRouter();
+  const toast = useToast();
   const [pending, startTransition] = useTransition();
 
   const reactivate = () =>
     startTransition(async () => {
       await reactivateOwnAccountAction();
+      toast.success("Cuenta reactivada");
       router.refresh();
     });
 

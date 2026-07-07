@@ -34,10 +34,16 @@ export function ProfileCard({
 }) {
   return (
     <div
-      className={`group flex h-full flex-col border bg-paper p-6 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_10px_30px_-15px_rgba(0,0,0,0.25)] ${
+      className={`group relative flex h-full cursor-pointer flex-col border bg-paper p-6 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_10px_30px_-15px_rgba(0,0,0,0.25)] ${
         featured ? "border-ink" : "border-ink/12 hover:border-ink"
       }`}
     >
+      {/* Overlay: hace toda la card clickeable hacia el perfil. */}
+      <Link
+        href={`/red/${p.id}`}
+        aria-label={`Ver perfil de ${p.nombre}`}
+        className="absolute inset-0"
+      />
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-4">
           <Avatar name={p.nombre} fotoUrl={p.fotoUrl} size={featured ? 60 : 52} />
@@ -94,20 +100,14 @@ export function ProfileCard({
         )}
       </div>
 
-      {/* Acciones */}
-      <div className="mt-6 flex items-center gap-3 border-t border-ink/10 pt-5">
-        <Link
-          href={`/red/${p.id}`}
-          className="link-underline text-sm font-medium text-ink"
-        >
-          Ver perfil
-        </Link>
-        {canContact && (
+      {/* Contactar (empresas) — z-10 para quedar por encima del overlay clickeable. */}
+      {canContact && (
+        <div className="relative z-10 mt-6 flex items-center border-t border-ink/10 pt-5">
           <div className="ml-auto">
             <ContactarFreelancerButton professionalId={p.id} initialStatus={contactStatus} />
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
