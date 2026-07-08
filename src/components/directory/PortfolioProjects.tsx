@@ -19,10 +19,12 @@ export type PortfolioProject = {
 export function PortfolioProjects({
   items,
   onDelete,
+  onEdit,
   deletingId,
 }: {
   items: PortfolioProject[];
   onDelete?: (id: string) => void;
+  onEdit?: (item: PortfolioProject) => void;
   deletingId?: string | null;
 }) {
   const [selected, setSelected] = useState<PortfolioProject | null>(null);
@@ -68,7 +70,19 @@ export function PortfolioProjects({
       </div>
 
       {selected && (
-        <ProjectDetailModal project={selected} onClose={() => setSelected(null)} />
+        <ProjectDetailModal
+          project={selected}
+          onClose={() => setSelected(null)}
+          onEdit={
+            onEdit
+              ? () => {
+                  const p = selected;
+                  setSelected(null);
+                  onEdit(p);
+                }
+              : undefined
+          }
+        />
       )}
     </>
   );
@@ -77,9 +91,11 @@ export function PortfolioProjects({
 function ProjectDetailModal({
   project,
   onClose,
+  onEdit,
 }: {
   project: PortfolioProject;
   onClose: () => void;
+  onEdit?: () => void;
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -123,16 +139,27 @@ function ProjectDetailModal({
         <div className="p-6">
           <h3 className="text-xl font-semibold">{project.titulo}</h3>
           <p className="mt-3 whitespace-pre-line text-ink/75">{project.descripcion}</p>
-          {href && (
-            <div className="mt-6 flex justify-end">
-              <a
-                href={href}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-block border border-ink px-5 py-2.5 text-xs font-medium uppercase tracking-[0.1em] text-ink transition-colors hover:bg-ink hover:text-paper"
-              >
-                Ver proyecto ↗
-              </a>
+          {(onEdit || href) && (
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              {onEdit && (
+                <button
+                  type="button"
+                  onClick={onEdit}
+                  className="inline-block border border-ink px-5 py-2.5 text-xs font-medium uppercase tracking-[0.1em] text-ink transition-colors hover:bg-ink hover:text-paper"
+                >
+                  Editar
+                </button>
+              )}
+              {href && (
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-block border border-ink px-5 py-2.5 text-xs font-medium uppercase tracking-[0.1em] text-ink transition-colors hover:bg-ink hover:text-paper"
+                >
+                  Ver proyecto ↗
+                </a>
+              )}
             </div>
           )}
         </div>

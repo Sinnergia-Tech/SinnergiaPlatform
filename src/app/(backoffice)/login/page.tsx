@@ -1,10 +1,12 @@
 "use client";
 
 import { Suspense, useActionState } from "react";
-import { authenticate } from "@/lib/auth-actions";
+import { authenticate, signInWithGoogleAction } from "@/lib/auth-actions";
 import { EMAIL_NOT_VERIFIED } from "@/lib/auth-constants";
 import { LoginResetBanner } from "@/components/account/LoginResetBanner";
 import { ResendVerificationForm } from "@/components/account/ResendVerificationForm";
+
+const googleEnabled = process.env.NEXT_PUBLIC_GOOGLE_LOGIN === "true";
 
 export default function LoginPage() {
   const [errorMessage, formAction, isPending] = useActionState(
@@ -34,6 +36,24 @@ export default function LoginPage() {
         <Suspense fallback={null}>
           <LoginResetBanner />
         </Suspense>
+
+        {googleEnabled && !emailNotVerified && (
+          <>
+            <form action={signInWithGoogleAction}>
+              <button
+                type="submit"
+                className="w-full border border-paper/30 px-6 py-3.5 text-sm font-medium uppercase tracking-[0.14em] text-paper transition-colors hover:bg-paper/10"
+              >
+                Continuar con Google
+              </button>
+            </form>
+            <div className="my-6 flex items-center gap-3 text-xs text-paper/35">
+              <div className="h-px flex-1 bg-paper/15" />
+              o
+              <div className="h-px flex-1 bg-paper/15" />
+            </div>
+          </>
+        )}
 
         {emailNotVerified ? (
           <div>

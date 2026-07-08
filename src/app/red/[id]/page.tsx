@@ -8,6 +8,7 @@ import { ContactarFreelancerButton } from "@/components/directory/ContactarFreel
 import { ClickableImage } from "@/components/ui/ImageLightbox";
 import { PortfolioProjects } from "@/components/directory/PortfolioProjects";
 import { SocialIcons } from "@/components/directory/SocialIcons";
+import { ReportProfileButton } from "@/components/directory/ReportProfileButton";
 import {
   getApprovedProfessional,
   getProfessionalWithPortfolio,
@@ -165,6 +166,12 @@ export default async function PerfilPage({
             </div>
           )}
         </div>
+
+        {!isOwner && (
+          <div className="mt-4 flex justify-end">
+            <ReportProfileButton professionalId={p.id} />
+          </div>
+        )}
       </Container>
     </main>
   );

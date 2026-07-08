@@ -27,13 +27,18 @@ function escapeHtml(value: string) {
     .replace(/'/g, "&#39;");
 }
 
-async function send(opts: { to: string; subject: string; html: string }) {
+async function send(opts: { to: string | string[]; subject: string; html: string }) {
   if (!resend) {
     console.warn("[email] RESEND_API_KEY sin configurar — se omite el envío");
     return;
   }
+  const to = Array.isArray(opts.to) ? opts.to.filter(Boolean) : opts.to;
+  if (Array.isArray(to) && to.length === 0) {
+    console.warn("[email] sin destinatarios — se omite el envío");
+    return;
+  }
   try {
-    await resend.emails.send({ from: FROM, ...opts });
+    await resend.emails.send({ from: FROM, ...opts, to });
   } catch (e) {
     console.error("[email] error al enviar:", e);
   }
@@ -94,21 +99,80 @@ export async function sendApplicationConfirmation(p: {
 
 // --- Diagnóstico de empresa -------------------------------------------------
 
-export async function notifyNewDiagnosis(c: {
-  nombre: string;
-  email: string;
-  rubro: string;
+/**
+ * Aviso a los admins de que una empresa pidió una sesión de consulta
+ * (diagnóstico). Incluye TODO el formulario para que puedan evaluarlo sin entrar,
+ * y el link directo al detalle en el backoffice. Se manda a todos los admins (`to`
+ * es un array); si no llega ninguno, cae al ADMIN por defecto.
+ */
+export async function notifyNewDiagnosis(p: {
+  to: string[];
+  detailUrl?: string;
+  company: {
+    nombre: string;
+    contacto: string;
+    email: string;
+    telefono?: string | null;
+    rubro: string;
+    tamano?: string | null;
+    sitioWeb?: string | null;
+  };
+  diagnosis: {
+    objetivos: string;
+    presupuesto: string;
+    facturacion?: string | null;
+    equipoActual?: string | null;
+    problemaPrincipal: string;
+  };
 }) {
-  const nombre = escapeHtml(c.nombre);
-  const rubro = escapeHtml(c.rubro);
-  const email = escapeHtml(c.email);
+  const to = p.to.length > 0 ? p.to : [ADMIN];
+  const c = p.company;
+  const d = p.diagnosis;
+
+  const row = (label: string, value?: string | null) =>
+    value
+      ? `<tr>
+           <td style="padding:6px 12px 6px 0;color:#9a9a97;white-space:nowrap;vertical-align:top;">${escapeHtml(label)}</td>
+           <td style="padding:6px 0;color:#1b1712;">${escapeHtml(value)}</td>
+         </tr>`
+      : "";
+
+  const block = (label: string, value: string) =>
+    `<div style="margin:0 0 14px;">
+       <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#9a9a97;margin-bottom:3px;">${escapeHtml(label)}</div>
+       <div style="color:#1b1712;white-space:pre-line;">${escapeHtml(value)}</div>
+     </div>`;
+
   await send({
-    to: ADMIN,
-    subject: `Nuevo diagnóstico: ${c.nombre}`,
+    to,
+    subject: `Nueva sesión de consulta: ${c.nombre}`,
     html: tpl(
-      "Nuevo diagnóstico recibido",
-      `<p><strong>${nombre}</strong> — ${rubro}<br>${email}</p>
-       <p>Revisalo en el backoffice y coordiná la primera entrevista.</p>`
+      "Una empresa quiere contactarse",
+      `<p><strong>${escapeHtml(c.nombre)}</strong> completó un diagnóstico y quiere
+       coordinar una sesión de consulta.</p>
+
+       <table style="width:100%;border-collapse:collapse;font-size:14px;margin:8px 0 20px;">
+         ${row("Contacto", c.contacto)}
+         ${row("Email", c.email)}
+         ${row("Teléfono", c.telefono)}
+         ${row("Rubro", c.rubro)}
+         ${row("Tamaño", c.tamano)}
+         ${row("Sitio web", c.sitioWeb)}
+       </table>
+
+       <div style="border-top:1px solid #e4ddd3;padding-top:16px;">
+         ${block("Objetivos", d.objetivos)}
+         ${block("Presupuesto", d.presupuesto)}
+         ${d.facturacion ? block("Facturación", d.facturacion) : ""}
+         ${d.equipoActual ? block("Equipo actual", d.equipoActual) : ""}
+         ${block("Problema principal", d.problemaPrincipal)}
+       </div>
+
+       ${
+         p.detailUrl
+           ? `<p style="margin-top:8px;"><a href="${p.detailUrl}" style="color:#000;">Abrir en el backoffice →</a></p>`
+           : `<p style="margin-top:8px;">Entrá al backoffice para gestionarlo.</p>`
+       }`
     ),
   });
 }

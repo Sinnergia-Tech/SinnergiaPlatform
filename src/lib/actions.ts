@@ -1,8 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/auth";
+import { auth, signIn } from "@/auth";
 import * as data from "@/lib/data";
+import { verifyOnboardingToken } from "@/lib/google-onboarding";
+import { decryptSecret } from "@/lib/crypto";
+import {
+  refreshAccessToken,
+  createCalendarEvent,
+  deleteCalendarEvent,
+} from "@/lib/google-calendar";
 import {
   notifyNewApplication,
   sendApplicationConfirmation,
@@ -19,6 +26,7 @@ import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { uploadProfilePhoto, InvalidPhotoError } from "@/lib/storage";
 import { PORTFOLIO_LIMITS } from "@/lib/portfolio-limits";
 import { normalizeExternalUrl } from "@/lib/url";
+import { checkBlobImage, checkText, checkUrlSafe } from "@/lib/security";
 import {
   EXPERIENCIAS,
   PRESUPUESTOS,
@@ -31,7 +39,9 @@ import type {
   EstadoLead,
   EstadoMatch,
   EstadoProfesional,
+  EstadoReporte,
 } from "@/lib/types";
+import { REPORTE_MOTIVOS } from "@/lib/types";
 
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/+$/, "");
 
@@ -90,6 +100,30 @@ export async function saveProfessionalAction(
   revalidatePath("/admin/profesionales");
 }
 
+/** Borra un proyecto de portfolio de cualquier profesional (moderación). */
+export async function adminDeletePortfolioItemAction(
+  itemId: string
+): Promise<{ ok: boolean; error?: string }> {
+  await requireAdmin();
+  const professionalId = await data.adminDeletePortfolioItem(itemId);
+  if (!professionalId) return { ok: false, error: "No se encontró el proyecto." };
+  revalidatePath(`/admin/profesionales/${professionalId}`);
+  revalidatePath(`/red/${professionalId}`);
+  return { ok: true };
+}
+
+/** Quita una imagen de la galería del portfolio de un profesional (moderación). */
+export async function adminRemovePortfolioImageAction(
+  professionalId: string,
+  url: string
+): Promise<{ ok: boolean; error?: string }> {
+  await requireAdmin();
+  await data.adminRemovePortfolioImage(professionalId, url);
+  revalidatePath(`/admin/profesionales/${professionalId}`);
+  revalidatePath(`/red/${professionalId}`);
+  return { ok: true };
+}
+
 // --- Leads / diagnósticos (admin) --------------------------------------------
 
 export async function updateLeadAction(
@@ -117,6 +151,74 @@ export async function toggleCandidateAction(
   await requireAdmin();
   await data.toggleCandidate(matchId, professionalId);
   revalidatePath("/admin/matches");
+}
+
+// --- Gestión de cuentas (admin) ----------------------------------------------
+// El admin interviene sobre las cuentas de freelancers/empresas. No opera sobre
+// cuentas de admin desde acá (evita bloqueos entre admins o auto-bloqueo).
+
+type AccountResult = { ok: boolean; error?: string };
+
+function revalidateAccountPaths(user: {
+  professionalId?: string | null;
+  companyId?: string | null;
+}) {
+  revalidatePath("/admin/profesionales");
+  revalidatePath("/admin/empresas");
+  revalidatePath("/red");
+  if (user.professionalId) revalidatePath(`/admin/profesionales/${user.professionalId}`);
+  if (user.companyId) revalidatePath(`/admin/empresas/${user.companyId}`);
+}
+
+/** Suspende (deshabilita) o reactiva una cuenta. */
+export async function adminSetAccountDisabledAction(
+  userId: string,
+  disabled: boolean
+): Promise<AccountResult> {
+  await requireAdmin();
+  const user = await data.getUserAccount(userId);
+  if (!user) return { ok: false, error: "No se encontró la cuenta." };
+  if (user.role === "admin") return { ok: false, error: "No se puede suspender una cuenta de admin." };
+  if (user.deletedAt) return { ok: false, error: "La cuenta está eliminada." };
+  if (disabled) await data.adminDisableUser(userId);
+  else await data.adminReactivateUser(userId);
+  revalidateAccountPaths(user);
+  return { ok: true };
+}
+
+/** Elimina (soft-delete + anonimización) una cuenta. Irreversible. */
+export async function adminDeleteAccountAction(userId: string): Promise<AccountResult> {
+  await requireAdmin();
+  const user = await data.getUserAccount(userId);
+  if (!user) return { ok: false, error: "No se encontró la cuenta." };
+  if (user.role === "admin") return { ok: false, error: "No se puede eliminar una cuenta de admin." };
+  if (user.deletedAt) return { ok: false, error: "La cuenta ya está eliminada." };
+  await data.softDeleteUser(userId);
+  revalidateAccountPaths(user);
+  return { ok: true };
+}
+
+/** Reenvía el mail de verificación de email a una cuenta sin verificar. */
+export async function adminResendVerificationAction(userId: string): Promise<AccountResult> {
+  await requireAdmin();
+  const user = await data.getUserAccount(userId);
+  if (!user) return { ok: false, error: "No se encontró la cuenta." };
+  if (user.deletedAt) return { ok: false, error: "La cuenta está eliminada." };
+  if (user.emailVerified) return { ok: false, error: "El email ya está verificado." };
+  const token = await data.createEmailVerificationToken(userId);
+  await sendVerificationEmail({ nombre: user.nombre, email: user.email, url: verificationUrl(token) });
+  return { ok: true };
+}
+
+/** Le manda al usuario un mail para restablecer su contraseña. */
+export async function adminSendPasswordResetAction(userId: string): Promise<AccountResult> {
+  await requireAdmin();
+  const user = await data.getUserAccount(userId);
+  if (!user) return { ok: false, error: "No se encontró la cuenta." };
+  if (user.deletedAt) return { ok: false, error: "La cuenta está eliminada." };
+  const token = await data.createPasswordResetToken(userId);
+  await sendPasswordResetEmail({ nombre: user.nombre, email: user.email, url: resetUrl(token) });
+  return { ok: true };
 }
 
 // --- Contacto empresa → freelancer -------------------------------------------
@@ -196,12 +298,22 @@ export async function addPortfolioItemAction(input: {
     return { ok: false, error: `El link no puede superar ${PORTFOLIO_LIMITS.enlace} caracteres` };
   }
 
+  const badTitulo = checkText(titulo, { field: "El título", maxUrls: 0 });
+  if (badTitulo) return { ok: false, error: badTitulo };
+  const badDesc = checkText(descripcion, { field: "La descripción" });
+  if (badDesc) return { ok: false, error: badDesc };
+
+  const badImg = checkBlobImage(input.imagenUrl);
+  if (badImg) return { ok: false, error: badImg };
+
   let enlaceFinal: string | undefined;
   if (enlace) {
     const normalized = normalizeExternalUrl(enlace);
     if (!normalized) {
       return { ok: false, error: "El link no parece una URL válida (ej. https://tusitio.com)" };
     }
+    const unsafe = await checkUrlSafe(normalized);
+    if (unsafe) return { ok: false, error: unsafe };
     enlaceFinal = normalized;
   }
 
@@ -222,6 +334,69 @@ export async function addPortfolioItemAction(input: {
   return { ok: true };
 }
 
+export async function updatePortfolioItemAction(input: {
+  id: string;
+  titulo: string;
+  descripcion: string;
+  imagenUrl?: string | null;
+  enlace?: string;
+}) {
+  const session = await auth();
+  if (session?.user?.role !== "freelancer" || !session.user.professionalId) {
+    return { ok: false, error: "No autorizado" };
+  }
+  const professionalId = session.user.professionalId;
+  const titulo = input.titulo.trim();
+  const descripcion = input.descripcion.trim();
+  const enlace = (input.enlace ?? "").trim();
+
+  if (!input.id) {
+    return { ok: false, error: "Falta el proyecto a editar" };
+  }
+  if (!titulo || !descripcion) {
+    return { ok: false, error: "Faltan datos obligatorios" };
+  }
+  if (titulo.length > PORTFOLIO_LIMITS.proyectoTitulo) {
+    return { ok: false, error: `El título no puede superar ${PORTFOLIO_LIMITS.proyectoTitulo} caracteres` };
+  }
+  if (descripcion.length > PORTFOLIO_LIMITS.proyectoDescripcion) {
+    return { ok: false, error: `La descripción no puede superar ${PORTFOLIO_LIMITS.proyectoDescripcion} caracteres` };
+  }
+  if (enlace.length > PORTFOLIO_LIMITS.enlace) {
+    return { ok: false, error: `El link no puede superar ${PORTFOLIO_LIMITS.enlace} caracteres` };
+  }
+
+  const badTitulo = checkText(titulo, { field: "El título", maxUrls: 0 });
+  if (badTitulo) return { ok: false, error: badTitulo };
+  const badDesc = checkText(descripcion, { field: "La descripción" });
+  if (badDesc) return { ok: false, error: badDesc };
+
+  const badImg = checkBlobImage(input.imagenUrl);
+  if (badImg) return { ok: false, error: badImg };
+
+  let enlaceFinal: string | null = null;
+  if (enlace) {
+    const normalized = normalizeExternalUrl(enlace);
+    if (!normalized) {
+      return { ok: false, error: "El link no parece una URL válida (ej. https://tusitio.com)" };
+    }
+    const unsafe = await checkUrlSafe(normalized);
+    if (unsafe) return { ok: false, error: unsafe };
+    enlaceFinal = normalized;
+  }
+
+  const updated = await data.updatePortfolioItem(input.id, professionalId, {
+    titulo,
+    descripcion,
+    imagenUrl: input.imagenUrl ?? null,
+    enlace: enlaceFinal,
+  });
+  if (!updated) return { ok: false, error: "No se encontró el proyecto" };
+  revalidatePath("/cuenta");
+  revalidatePath(`/red/${professionalId}`);
+  return { ok: true };
+}
+
 /** Guarda la descripción general y las (hasta 3) imágenes del portfolio. */
 export async function savePortfolioAction(input: {
   descripcion: string;
@@ -235,7 +410,14 @@ export async function savePortfolioAction(input: {
   if (descripcion.length > PORTFOLIO_LIMITS.descripcion) {
     return { ok: false, error: `La descripción no puede superar ${PORTFOLIO_LIMITS.descripcion} caracteres` };
   }
+  const badDesc = checkText(descripcion, { field: "La descripción" });
+  if (badDesc) return { ok: false, error: badDesc };
+
   const imagenes = input.imagenes.filter(Boolean).slice(0, PORTFOLIO_LIMITS.imagenesMax);
+  for (const url of imagenes) {
+    const badImg = checkBlobImage(url);
+    if (badImg) return { ok: false, error: badImg };
+  }
 
   await data.updateProfessional(session.user.professionalId, {
     portfolioDescripcion: descripcion || null,
@@ -346,6 +528,15 @@ export async function updateFreelancerProfileAction(input: {
   if (titular.length > 80) return { ok: false, error: "El titular no puede superar 80 caracteres" };
   if (descripcion.length > 500) return { ok: false, error: "La descripción no puede superar 500 caracteres" };
 
+  for (const [value, field, maxUrls] of [
+    [nombre, "El nombre", 0],
+    [titular, "El titular", 0],
+    [descripcion, "La descripción", 1],
+  ] as const) {
+    const bad = checkText(value, { field, maxUrls });
+    if (bad) return { ok: false, error: bad };
+  }
+
   const roles = input.roles
     .filter((r) => (ROLES as readonly string[]).includes(r))
     .slice(0, 5);
@@ -404,6 +595,8 @@ export async function updateFreelancerSocialsAction(input: {
         error: `El link de ${SOCIAL_LABELS[key]} no parece una URL válida (ej. https://…)`,
       };
     }
+    const unsafe = await checkUrlSafe(url);
+    if (unsafe) return { ok: false, error: `${SOCIAL_LABELS[key]}: ${unsafe}` };
     fields[key] = url;
   }
   await data.updateProfessional(session.user.professionalId, fields);
@@ -425,7 +618,30 @@ export async function updateCompanyProfileAction(input: {
   if (session?.user?.role !== "empresa" || !session.user.companyId) {
     return { ok: false, error: "No autorizado" };
   }
-  await data.updateCompanyProfile(session.user.companyId, input);
+
+  if (input.descripcion) {
+    const bad = checkText(input.descripcion, { field: "La descripción" });
+    if (bad) return { ok: false, error: bad };
+  }
+
+  const badLogo = checkBlobImage(input.logoUrl);
+  if (badLogo) return { ok: false, error: badLogo };
+
+  const clean: typeof input = { ...input };
+  for (const key of ["linkedin", "instagram"] as const) {
+    const val = input[key]?.trim();
+    if (!val) {
+      clean[key] = undefined;
+      continue;
+    }
+    const url = normalizeExternalUrl(val);
+    if (!url) return { ok: false, error: `El link de ${key} no parece una URL válida (ej. https://…)` };
+    const unsafe = await checkUrlSafe(url);
+    if (unsafe) return { ok: false, error: `${key}: ${unsafe}` };
+    clean[key] = url;
+  }
+
+  await data.updateCompanyProfile(session.user.companyId, clean);
   revalidatePath("/cuenta");
   return { ok: true };
 }
@@ -462,6 +678,227 @@ export async function uploadCompanyLogoAction(formData: FormData) {
   }
 }
 
+// --- Reportes de contenido ---------------------------------------------------
+
+/** Cualquier usuario logueado puede reportar un perfil. Rate-limit + dedupe. */
+export async function reportProfileAction(input: {
+  professionalId: string;
+  motivo: string;
+  detalle?: string;
+}) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { ok: false, error: "Tenés que iniciar sesión para reportar." };
+  }
+  if (!input.professionalId) {
+    return { ok: false, error: "Falta el perfil a reportar." };
+  }
+  if (!(REPORTE_MOTIVOS as readonly string[]).includes(input.motivo)) {
+    return { ok: false, error: "Elegí un motivo válido." };
+  }
+  const detalle = (input.detalle ?? "").trim();
+  if (detalle.length > 500) {
+    return { ok: false, error: "El detalle no puede superar 500 caracteres." };
+  }
+
+  // No podés reportar tu propio perfil.
+  if (session.user.professionalId === input.professionalId) {
+    return { ok: false, error: "No podés reportar tu propio perfil." };
+  }
+
+  const okRate = await checkRateLimit(`report:${session.user.id}`, {
+    max: 10,
+    windowMs: 24 * 60 * 60 * 1000,
+  });
+  if (!okRate) {
+    return { ok: false, error: "Alcanzaste el máximo de reportes por hoy." };
+  }
+
+  if (await data.hasPendingReportFrom(input.professionalId, session.user.id)) {
+    return { ok: true, already: true };
+  }
+
+  const prof = await data.getProfessional(input.professionalId);
+  if (!prof) return { ok: false, error: "El perfil no existe." };
+
+  const ip = await getClientIp();
+  await data.createReport({
+    professionalId: input.professionalId,
+    motivo: input.motivo,
+    detalle: detalle || null,
+    reporterUserId: session.user.id,
+    reporterIp: ip,
+  });
+  revalidatePath("/admin/reportes");
+  revalidatePath("/admin");
+  return { ok: true, already: false };
+}
+
+export async function setReportEstadoAction(id: string, estado: EstadoReporte) {
+  await requireAdmin();
+  await data.setReportEstado(id, estado);
+  revalidatePath("/admin/reportes");
+  revalidatePath("/admin");
+}
+
+/** Desde un reporte: oculta el perfil del directorio y marca el reporte revisado. */
+export async function hideReportedProfileAction(
+  reportId: string
+): Promise<{ ok: boolean; error?: string }> {
+  await requireAdmin();
+  const report = await data.getReport(reportId);
+  if (!report?.professionalId) {
+    return { ok: false, error: "El reporte no tiene un perfil asociado." };
+  }
+  await data.setProfessionalEstado(report.professionalId, "oculto");
+  await data.setReportEstado(reportId, "revisado");
+  revalidatePath("/admin/reportes");
+  revalidatePath("/admin");
+  revalidatePath("/red");
+  revalidatePath(`/red/${report.professionalId}`);
+  revalidatePath(`/admin/profesionales/${report.professionalId}`);
+  return { ok: true };
+}
+
+/** Desde un reporte: suspende la cuenta del profesional y marca el reporte revisado. */
+export async function suspendReportedAccountAction(
+  reportId: string
+): Promise<{ ok: boolean; error?: string }> {
+  await requireAdmin();
+  const report = await data.getReport(reportId);
+  if (!report?.professionalId) {
+    return { ok: false, error: "El reporte no tiene un perfil asociado." };
+  }
+  const account = await data.getAccountByProfessionalId(report.professionalId);
+  if (!account) return { ok: false, error: "El perfil no tiene cuenta de usuario." };
+  if (account.deletedAt) return { ok: false, error: "La cuenta está eliminada." };
+  await data.adminDisableUser(account.id);
+  await data.setReportEstado(reportId, "revisado");
+  revalidatePath("/admin/reportes");
+  revalidatePath("/admin");
+  revalidatePath("/red");
+  revalidatePath(`/red/${report.professionalId}`);
+  return { ok: true };
+}
+
+// --- Google Calendar ---------------------------------------------------------
+
+export async function disconnectCalendarAction() {
+  await requireAdmin();
+  await data.deleteCalendarConnection();
+  revalidatePath("/admin/calendario");
+}
+
+/** Access token válido de la cuenta del estudio (o null si no hay conexión). */
+async function getStudioAccessToken() {
+  const conn = await data.getCalendarConnection();
+  if (!conn) return null;
+  const accessToken = await refreshAccessToken(decryptSecret(conn.refreshToken));
+  return { accessToken, calendarId: conn.calendarId };
+}
+
+export async function scheduleMeetingAction(input: {
+  companyId: string;
+  diagnosisId?: string;
+  fecha: string; // "YYYY-MM-DD"
+  hora: string; // "HH:mm"
+  duracionMin?: number;
+  titulo?: string;
+}) {
+  const session = await auth();
+  if (session?.user?.role !== "admin") return { ok: false, error: "No autorizado" };
+
+  const company = await data.getEmpresaData(input.companyId);
+  if (!company) return { ok: false, error: "No se encontró la empresa." };
+
+  // Argentina: offset fijo -03:00 (sin horario de verano).
+  const startsAt = new Date(`${input.fecha}T${input.hora}:00-03:00`);
+  if (Number.isNaN(startsAt.getTime())) return { ok: false, error: "Fecha u hora inválida." };
+  const dur = Math.min(240, Math.max(15, Math.round(input.duracionMin || 45)));
+  const endsAt = new Date(startsAt.getTime() + dur * 60_000);
+
+  const titulo = (input.titulo?.trim() || `Sesión de consulta — ${company.nombre}`).slice(0, 200);
+
+  let conn: Awaited<ReturnType<typeof getStudioAccessToken>>;
+  try {
+    conn = await getStudioAccessToken();
+  } catch (e) {
+    console.error("[calendar] token:", e);
+    return { ok: false, error: "El calendario del estudio necesita reconectarse." };
+  }
+  if (!conn) {
+    return { ok: false, error: "Primero conectá el calendario del estudio en Calendario." };
+  }
+
+  // Invitados: la empresa + todos los admins (para que a cada uno le aparezca en
+  // SU Google Calendar, además de verlo en la plataforma).
+  const adminEmails = await data.listAdminEmails();
+
+  let event;
+  try {
+    event = await createCalendarEvent(conn.accessToken, conn.calendarId, {
+      summary: titulo,
+      description: `Sesión de consulta de Sinnergia con ${company.nombre}.`,
+      startISO: startsAt.toISOString(),
+      endISO: endsAt.toISOString(),
+      attendeeEmails: [company.email, ...adminEmails],
+    });
+  } catch (e) {
+    console.error("[calendar] createEvent:", e);
+    return {
+      ok: false,
+      error: "No se pudo crear el evento en Google Calendar. Reconectá el calendario e intentá de nuevo.",
+    };
+  }
+
+  // Si no vino un diagnóstico explícito (ej. se agenda desde el calendario), se
+  // usa el más reciente de la empresa.
+  const latest = company.diagnoses[0];
+  const diagnosisId = input.diagnosisId ?? latest?.id ?? null;
+
+  await data.createMeeting({
+    companyId: input.companyId,
+    diagnosisId,
+    scheduledById: session.user.id,
+    titulo,
+    startsAt,
+    endsAt,
+    googleEventId: event.id,
+    meetUrl: event.meetUrl,
+    htmlLink: event.htmlLink,
+  });
+
+  // Si el lead más reciente está "nuevo", agendar lo mueve a "en conversación".
+  if (diagnosisId && latest?.estadoLead === "nuevo") {
+    await data.updateLead(diagnosisId, { estadoLead: "en_conversacion" });
+  }
+
+  revalidatePath(`/admin/empresas/${input.companyId}`);
+  revalidatePath("/admin/empresas");
+  revalidatePath("/admin/calendario");
+  return { ok: true, meetUrl: event.meetUrl };
+}
+
+export async function cancelMeetingAction(meetingId: string) {
+  await requireAdmin();
+  const meeting = await data.getMeeting(meetingId);
+  if (!meeting) return { ok: false, error: "No se encontró la sesión." };
+
+  if (meeting.googleEventId) {
+    try {
+      const conn = await getStudioAccessToken();
+      if (conn) await deleteCalendarEvent(conn.accessToken, conn.calendarId, meeting.googleEventId);
+    } catch (e) {
+      // Si falla el borrado en Google, igual cancelamos de nuestro lado.
+      console.error("[calendar] deleteEvent:", e);
+    }
+  }
+  await data.markMeetingCancelled(meetingId);
+  revalidatePath(`/admin/empresas/${meeting.companyId}`);
+  revalidatePath("/admin/calendario");
+  return { ok: true };
+}
+
 // --- Formularios públicos (sin auth) -----------------------------------------
 
 export async function submitApplicationAction(input: {
@@ -492,6 +929,26 @@ export async function submitApplicationAction(input: {
     return { ok: false, error: PASSWORD_HINT };
   }
 
+  for (const [value, field, maxUrls] of [
+    [input.nombre, "El nombre", 0],
+    [input.titular, "El titular", 0],
+    [input.descripcion ?? "", "La descripción", 1],
+  ] as const) {
+    const bad = checkText(value, { field, maxUrls });
+    if (bad) return { ok: false, error: bad };
+  }
+
+  const cleanUrls: Partial<Pick<typeof input, "portfolioUrl" | "linkedin" | "instagram">> = {};
+  for (const key of ["portfolioUrl", "linkedin", "instagram"] as const) {
+    const val = input[key]?.trim();
+    if (!val) continue;
+    const url = normalizeExternalUrl(val);
+    if (!url) return { ok: false, error: `El link de ${key} no parece una URL válida (ej. https://…)` };
+    const unsafe = await checkUrlSafe(url);
+    if (unsafe) return { ok: false, error: `${key}: ${unsafe}` };
+    cleanUrls[key] = url;
+  }
+
   const ip = await getClientIp();
   const okRate = await checkRateLimit(`register:ip:${ip}`, {
     max: 5,
@@ -511,6 +968,7 @@ export async function submitApplicationAction(input: {
   const passwordHash = await hashPassword(input.password);
   const { user } = await data.createProfessionalWithAccount({
     ...input,
+    ...cleanUrls,
     passwordHash,
   });
   const token = await data.createEmailVerificationToken(user.id);
@@ -569,13 +1027,33 @@ export async function submitDiagnosisAction(input: {
   }
 
   const passwordHash = await hashPassword(input.password);
-  const { user } = await data.createCompanyWithAccount({
+  const { user, company } = await data.createCompanyWithAccount({
     ...input,
     passwordHash,
   });
   const token = await data.createEmailVerificationToken(user.id);
 
-  await notifyNewDiagnosis({ nombre: input.nombre, email: input.email, rubro: input.rubro });
+  const adminEmails = await data.listAdminEmails();
+  await notifyNewDiagnosis({
+    to: adminEmails,
+    detailUrl: `${SITE_URL}/admin/empresas/${company.id}`,
+    company: {
+      nombre: input.nombre,
+      contacto: input.contacto,
+      email: input.email,
+      telefono: input.telefono,
+      rubro: input.rubro,
+      tamano: input.tamano,
+      sitioWeb: input.sitioWeb,
+    },
+    diagnosis: {
+      objetivos: input.objetivos,
+      presupuesto: input.presupuesto,
+      facturacion: input.facturacion,
+      equipoActual: input.equipoActual,
+      problemaPrincipal: input.problemaPrincipal,
+    },
+  });
   await sendDiagnosisConfirmation({ nombre: input.nombre, email: input.email });
   await sendVerificationEmail({
     nombre: input.nombre,
@@ -613,10 +1091,100 @@ export async function addDiagnosisAction(input: {
     equipoActual: input.equipoActual,
     problemaPrincipal: input.problemaPrincipal,
   });
-  await notifyNewDiagnosis({ nombre: company.nombre, email: company.email, rubro: company.rubro });
+  const adminEmails = await data.listAdminEmails();
+  await notifyNewDiagnosis({
+    to: adminEmails,
+    detailUrl: `${SITE_URL}/admin/empresas/${session.user.companyId}`,
+    company: {
+      nombre: company.nombre,
+      contacto: company.contacto,
+      email: company.email,
+      telefono: company.telefono,
+      rubro: company.rubro,
+      tamano: company.tamano,
+      sitioWeb: company.sitioWeb,
+    },
+    diagnosis: {
+      objetivos: input.objetivos,
+      presupuesto: input.presupuesto,
+      facturacion: input.facturacion,
+      equipoActual: input.equipoActual,
+      problemaPrincipal: input.problemaPrincipal,
+    },
+  });
   revalidatePath("/admin/empresas");
   revalidatePath("/cuenta");
   return { ok: true };
+}
+
+// --- Alta vía Google (onboarding) --------------------------------------------
+// El usuario ya se autenticó con Google (email verificado); acá elige tipo y
+// completa los datos mínimos. No hay contraseña: entra siempre con Google (o
+// puede crearse una después con "recuperar contraseña"). Al final, reiniciamos
+// el login con Google para dejar la sesión establecida.
+
+export async function completeGoogleRegistrationAction(
+  input:
+    | { token: string; tipo: "freelancer"; nombre: string; titular: string }
+    | { token: string; tipo: "empresa"; nombre: string; contacto: string; rubro: string }
+): Promise<{ ok: false; error: string } | void> {
+  const identity = verifyOnboardingToken(input.token);
+  if (!identity) {
+    return { ok: false, error: "El enlace de registro venció. Volvé a entrar con Google." };
+  }
+  const email = identity.email.toLowerCase();
+
+  // Carrera: si ya se creó una cuenta con ese email, no duplicar.
+  if (await data.findUserByEmail(email)) {
+    return { ok: false, error: "Ya existe una cuenta con ese email. Iniciá sesión." };
+  }
+
+  const nombre = input.nombre.trim();
+  if (!nombre) return { ok: false, error: "Faltan datos obligatorios" };
+  const badNombre = checkText(nombre, { field: "El nombre", maxUrls: 0 });
+  if (badNombre) return { ok: false, error: badNombre };
+
+  if (input.tipo === "freelancer") {
+    if (!ROLES.includes(input.titular)) {
+      return { ok: false, error: "Elegí un rol principal válido" };
+    }
+    await data.createProfessionalWithAccount({
+      nombre,
+      email,
+      titular: input.titular,
+      descripcion: "",
+      roles: [input.titular],
+      rubros: [],
+      experiencia: EXPERIENCIAS[0],
+      honorarios: PRESUPUESTOS[0],
+      modalidad: MODALIDADES[0],
+      disponibilidad: DISPONIBILIDADES[0],
+      googleId: identity.sub || null,
+      image: identity.image,
+      emailVerified: new Date(),
+    });
+    revalidatePath("/admin/profesionales");
+  } else {
+    const contacto = input.contacto.trim();
+    if (!contacto) return { ok: false, error: "Falta la persona de contacto" };
+    if (!RUBROS.includes(input.rubro)) {
+      return { ok: false, error: "Elegí un rubro válido" };
+    }
+    await data.createCompanyAccount({
+      nombre,
+      contacto,
+      email,
+      rubro: input.rubro,
+      googleId: identity.sub || null,
+      image: identity.image,
+      emailVerified: new Date(),
+    });
+    revalidatePath("/admin/empresas");
+  }
+
+  // La cuenta ya existe → reiniciamos el login con Google para dejar la sesión
+  // hecha. Como ya consintió, es un redirect silencioso. (signIn lanza redirect.)
+  await signIn("google", { redirectTo: "/cuenta" });
 }
 
 // --- Alta rápida de cuenta (desde /login → /crear-cuenta) -------------------

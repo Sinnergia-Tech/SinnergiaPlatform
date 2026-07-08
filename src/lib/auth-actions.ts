@@ -40,6 +40,12 @@ export async function authenticate(
   }
 }
 
+/** Inicia el login con Google (redirige al consentimiento de Google). */
+export async function signInWithGoogleAction() {
+  // signIn lanza un redirect (a Google, y luego de vuelta): dejarlo propagar.
+  await signIn("google", { redirectTo: "/cuenta" });
+}
+
 export async function logoutAction() {
   await signOut({ redirectTo: "/login" });
 }

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { Sidebar, AdminMobileBar } from "@/components/admin/Sidebar";
+import { countNewDiagnoses, countPendingReports } from "@/lib/data";
 
 export const metadata: Metadata = {
   title: "Backoffice · Sinnergia Studio",
@@ -21,10 +22,20 @@ export default async function AdminLayout({
     redirect("/login");
   }
 
+  // Contadores para los badges del sidebar (persistentes en todo el backoffice).
+  const [nuevosDiagnosticos, reportesPendientes] = await Promise.all([
+    countNewDiagnoses(),
+    countPendingReports(),
+  ]);
+  const badges = {
+    "/admin/empresas": nuevosDiagnosticos,
+    "/admin/reportes": reportesPendientes,
+  };
+
   return (
     <div className="min-h-screen bg-smoke text-ink">
-      <Sidebar />
-      <AdminMobileBar />
+      <Sidebar badges={badges} />
+      <AdminMobileBar badges={badges} />
       <div className="lg:pl-60">
         <main className="mx-auto max-w-[1200px] px-5 py-8 sm:px-8 lg:py-10">
           {children}

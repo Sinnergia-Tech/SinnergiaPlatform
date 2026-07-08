@@ -17,6 +17,7 @@ import type { Session } from "next-auth";
 export async function requireAccount(): Promise<{
   session: Session;
   disabled: boolean;
+  disabledByAdmin: boolean;
 }> {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
@@ -24,5 +25,9 @@ export async function requireAccount(): Promise<{
   const flags = await getAccountFlags(session.user.id);
   if (!flags || flags.deletedAt) redirect("/login");
 
-  return { session, disabled: !!flags.disabledAt };
+  return {
+    session,
+    disabled: !!flags.disabledAt,
+    disabledByAdmin: !!flags.disabledByAdmin,
+  };
 }

@@ -150,10 +150,13 @@ async function main() {
   // el flujo de verificación de email, que es sólo para auto-registro).
   const now = new Date();
 
-  // Admin
+  // Admin. Los administradores reales se gestionan por fuera del seed (cuentas
+  // nominales del equipo). Por eso el `update` NO pisa la contraseña ni el nombre
+  // de un admin que ya exista: re-correr el seed no debe resetear credenciales
+  // reales. Sólo garantiza que, en una base nueva, exista el admin de arranque.
   await prisma.user.upsert({
     where: { email: ADMIN_EMAIL },
-    update: { passwordHash: adminHash, nombre: "Equipo Sinnergia", role: "admin", emailVerified: now },
+    update: { role: "admin", emailVerified: now },
     create: {
       email: ADMIN_EMAIL,
       passwordHash: adminHash,

@@ -7,6 +7,8 @@ import { Field, TextArea } from "@/components/ui/Form";
 import { updateLeadAction } from "@/lib/actions";
 import { ESTADO_LEAD_LABEL } from "@/lib/catalogs";
 import type { EstadoLead } from "@/lib/types";
+import { AgendarSesion, type MeetingRow } from "@/components/admin/AgendarSesion";
+import { AdminAccountPanel, type AccountInfo } from "@/components/admin/AdminAccountPanel";
 
 const ESTADOS_LEAD: EstadoLead[] = [
   "nuevo",
@@ -49,7 +51,17 @@ function formatFecha(value: string | Date) {
   });
 }
 
-export function EmpresaDetail({ company }: { company: Company }) {
+export function EmpresaDetail({
+  company,
+  meetings,
+  calendarConnected,
+  account,
+}: {
+  company: Company;
+  meetings: MeetingRow[];
+  calendarConnected: boolean;
+  account: AccountInfo;
+}) {
   const diag = company.diagnoses[0];
   const [estadoLead, setEstadoLead] = useState<EstadoLead>(diag?.estadoLead ?? "nuevo");
   const [notas, setNotas] = useState(diag?.notas ?? "");
@@ -138,9 +150,6 @@ export function EmpresaDetail({ company }: { company: Company }) {
                 <button onClick={save} className="bg-ink px-6 py-3 text-sm font-medium uppercase tracking-[0.12em] text-paper transition-colors hover:bg-ink/85">
                   Guardar
                 </button>
-                <Link href="/admin/matches" className="border border-ink px-6 py-3 text-sm font-medium uppercase tracking-[0.12em] hover:bg-ink hover:text-paper">
-                  Ver matches
-                </Link>
                 {saved && <span className="text-sm text-ink/50">Guardado ✓</span>}
               </div>
             </div>
@@ -159,6 +168,19 @@ export function EmpresaDetail({ company }: { company: Company }) {
             <Row label="Origen" value={company.origen ?? "—"} />
           </div>
         </Card>
+      </div>
+
+      <div className="mt-4">
+        <AgendarSesion
+          companyId={company.id}
+          diagnosisId={diag?.id}
+          meetings={meetings}
+          calendarConnected={calendarConnected}
+        />
+      </div>
+
+      <div className="mt-4">
+        <AdminAccountPanel account={account} />
       </div>
     </>
   );

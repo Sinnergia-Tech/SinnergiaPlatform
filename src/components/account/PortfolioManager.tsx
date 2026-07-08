@@ -6,6 +6,7 @@ import {
   addPortfolioItemAction,
   deletePortfolioItemAction,
   savePortfolioAction,
+  updatePortfolioItemAction,
   uploadPortfolioImageAction,
 } from "@/lib/actions";
 import { PORTFOLIO_LIMITS as L } from "@/lib/portfolio-limits";
@@ -115,6 +116,7 @@ export function PortfolioManager({
 
   // --- Proyectos ---
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [titulo, setTitulo] = useState("");
   const [pDesc, setPDesc] = useState("");
   const [enlace, setEnlace] = useState("");
@@ -124,6 +126,7 @@ export function PortfolioManager({
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const projInput = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const atMax = items.length >= L.proyectosMax;
 
@@ -146,6 +149,7 @@ export function PortfolioManager({
   };
 
   const resetForm = () => {
+    setEditingId(null);
     setTitulo("");
     setPDesc("");
     setEnlace("");
@@ -153,24 +157,47 @@ export function PortfolioManager({
     setError(null);
   };
 
+  const startEdit = (item: PortfolioItem) => {
+    setEditingId(item.id);
+    setTitulo(item.titulo);
+    setPDesc(item.descripcion);
+    setEnlace(item.enlace ?? "");
+    setProjImg(item.imagenUrl);
+    setError(null);
+    setShowForm(true);
+    // Traer el formulario a la vista (queda arriba de la grilla).
+    requestAnimationFrame(() =>
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }),
+    );
+  };
+
   const submitProject = async (e: React.FormEvent) => {
     e.preventDefault();
     setPending(true);
     setError(null);
-    const res = await addPortfolioItemAction({
-      titulo,
-      descripcion: pDesc,
-      imagenUrl: projImg || undefined,
-      enlace: enlace || undefined,
-    });
+    const res = editingId
+      ? await updatePortfolioItemAction({
+          id: editingId,
+          titulo,
+          descripcion: pDesc,
+          imagenUrl: projImg,
+          enlace: enlace || undefined,
+        })
+      : await addPortfolioItemAction({
+          titulo,
+          descripcion: pDesc,
+          imagenUrl: projImg || undefined,
+          enlace: enlace || undefined,
+        });
     setPending(false);
     if (res.ok) {
+      const wasEditing = editingId !== null;
       resetForm();
       setShowForm(false);
-      toast.success("Proyecto agregado");
+      toast.success(wasEditing ? "Proyecto actualizado" : "Proyecto agregado");
       router.refresh();
     } else {
-      setError(res.error ?? "No se pudo agregar el proyecto.");
+      setError(res.error ?? "No se pudo guardar el proyecto.");
     }
   };
 
@@ -283,9 +310,14 @@ export function PortfolioManager({
           <button
             type="button"
             onClick={() => {
+              if (showForm) {
+                setShowForm(false);
+                resetForm();
+                return;
+              }
               if (atMax) return;
-              setShowForm((v) => !v);
               resetForm();
+              setShowForm(true);
             }}
             disabled={atMax && !showForm}
             className="border border-ink px-4 py-2 text-xs font-medium uppercase tracking-[0.1em] text-ink transition-colors hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:opacity-40"
@@ -295,7 +327,10 @@ export function PortfolioManager({
         </div>
 
         {showForm && (
-          <form onSubmit={submitProject} className="mb-6 space-y-3 border border-ink/10 bg-smoke p-4">
+          <form ref={formRef} onSubmit={submitProject} className="mb-6 space-y-3 border border-ink/10 bg-smoke p-4">
+            <p className="text-xs font-medium uppercase tracking-[0.1em] text-ink/50">
+              {editingId ? "Editar proyecto" : "Nuevo proyecto"}
+            </p>
             {/* Imagen del proyecto */}
             <div className="flex items-center gap-4">
               <button
@@ -378,7 +413,11 @@ export function PortfolioManager({
               disabled={pending || !projValid}
               className="bg-ink px-5 py-2.5 text-xs font-medium uppercase tracking-[0.1em] text-paper transition-colors hover:bg-ink/85 disabled:opacity-50"
             >
-              {pending ? "Guardando…" : "Guardar proyecto"}
+              {pending
+                ? "Guardando…"
+                : editingId
+                  ? "Guardar cambios"
+                  : "Guardar proyecto"}
             </button>
           </form>
         )}
@@ -389,7 +428,12 @@ export function PortfolioManager({
             ver los proyectos que agregues acá.
           </p>
         ) : (
-          <PortfolioProjects items={items} onDelete={removeProject} deletingId={deletingId} />
+          <PortfolioProjects
+            items={items}
+            onDelete={removeProject}
+            onEdit={startEdit}
+            deletingId={deletingId}
+          />
         )}
       </div>
     </section>

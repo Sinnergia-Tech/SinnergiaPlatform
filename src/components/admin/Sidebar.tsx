@@ -6,12 +6,14 @@ import { logoutAction } from "@/lib/auth-actions";
 
 const items = [
   { label: "Dashboard", href: "/admin" },
-  { label: "Profesionales", href: "/admin/profesionales" },
   { label: "Empresas", href: "/admin/empresas" },
-  { label: "Matches", href: "/admin/matches" },
+  { label: "Profesionales", href: "/admin/profesionales" },
+  { label: "Contactos", href: "/admin/contactos" },
+  { label: "Calendario", href: "/admin/calendario" },
+  { label: "Reportes", href: "/admin/reportes" },
 ];
 
-export function Sidebar() {
+export function Sidebar({ badges = {} }: { badges?: Record<string, number> }) {
   const pathname = usePathname();
 
   const logout = () => {
@@ -48,6 +50,7 @@ export function Sidebar() {
             it.href === "/admin"
               ? pathname === "/admin"
               : pathname.startsWith(it.href);
+          const count = badges[it.href] ?? 0;
           return (
             <Link
               key={it.href}
@@ -63,7 +66,16 @@ export function Sidebar() {
                   active ? "bg-paper" : "bg-ink/25"
                 }`}
               />
-              {it.label}
+              <span className="flex-1">{it.label}</span>
+              {count > 0 && (
+                <span
+                  className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[0.7rem] font-medium ${
+                    active ? "bg-paper text-ink" : "bg-ink text-paper"
+                  }`}
+                >
+                  {count}
+                </span>
+              )}
             </Link>
           );
         })}
@@ -71,12 +83,6 @@ export function Sidebar() {
 
       {/* User */}
       <div className="border-t border-ink/10 p-4">
-        <Link
-          href="/"
-          className="mb-3 flex items-center gap-2 px-2 text-xs text-ink/50 hover:text-ink"
-        >
-          ← Ver sitio público
-        </Link>
         <div className="flex items-center gap-3 rounded-sm px-2 py-2">
           <div className="flex h-9 w-9 items-center justify-center bg-ink text-xs font-semibold text-paper">
             SC
@@ -98,7 +104,11 @@ export function Sidebar() {
 }
 
 /** Barra superior mobile del backoffice (el sidebar se oculta en < lg). */
-export function AdminMobileBar() {
+export function AdminMobileBar({ badges = {} }: { badges?: Record<string, number> }) {
+  const dot = (href: string) =>
+    (badges[href] ?? 0) > 0 ? (
+      <span className="ml-0.5 inline-flex h-1.5 w-1.5 rounded-full bg-ink align-super" />
+    ) : null;
   return (
     <div className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-ink/10 bg-paper px-5 lg:hidden">
       <div className="flex items-center gap-2">
@@ -110,9 +120,15 @@ export function AdminMobileBar() {
       </div>
       <nav className="flex gap-4 text-xs text-ink/60">
         <Link href="/admin">Panel</Link>
+        <Link href="/admin/empresas">
+          Emp.{dot("/admin/empresas")}
+        </Link>
         <Link href="/admin/profesionales">Prof.</Link>
-        <Link href="/admin/empresas">Emp.</Link>
-        <Link href="/admin/matches">Match</Link>
+        <Link href="/admin/contactos">Cont.</Link>
+        <Link href="/admin/calendario">Cal.</Link>
+        <Link href="/admin/reportes">
+          Rep.{dot("/admin/reportes")}
+        </Link>
       </nav>
     </div>
   );

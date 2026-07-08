@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { AdminPageHeader, Badge, Card, estadoVariant } from "@/components/admin/ui";
 import { ESTADO_LEAD_LABEL } from "@/lib/catalogs";
 import type { EstadoLead } from "@/lib/types";
@@ -33,8 +34,12 @@ const ESTADOS = [
 ];
 
 export function EmpresasTable({ initial }: { initial: Row[] }) {
+  const searchParams = useSearchParams();
+  const estadoParam = searchParams.get("estado");
   const [q, setQ] = useState("");
-  const [estado, setEstado] = useState("todos");
+  const [estado, setEstado] = useState(
+    estadoParam && ESTADOS.includes(estadoParam) ? estadoParam : "todos"
+  );
 
   const rows = useMemo(
     () =>

@@ -28,7 +28,7 @@ export default async function Home() {
 
   return (
     <main>
-      <Nav account={account} showDiagnostico={showDiagnostico} />
+      <Nav account={account} showDiagnostico={showDiagnostico} role={session?.user?.role} />
       <Hero showDiagnostico={showDiagnostico} />
       <Problema />
       <ComoFunciona />

@@ -33,6 +33,19 @@ export type EstadoLead =
 /** Estado de una solicitud de match. */
 export type EstadoMatch = "solicitado" | "en_gestion" | "cerrado" | "descartado";
 
+/** Estado de un reporte de contenido en el backoffice. */
+export type EstadoReporte = "pendiente" | "revisado" | "descartado";
+
+/** Motivos válidos de un reporte (controlados por código). */
+export const REPORTE_MOTIVOS = [
+  "Contenido inapropiado u ofensivo",
+  "Spam o estafa",
+  "Link peligroso o malicioso",
+  "Suplantación de identidad",
+  "Otro",
+] as const;
+export type ReporteMotivo = (typeof REPORTE_MOTIVOS)[number];
+
 // --- Entidades ----------------------------------------------------------------
 
 export interface Professional {

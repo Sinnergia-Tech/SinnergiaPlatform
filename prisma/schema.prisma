@@ -50,15 +50,27 @@ enum ContactStatus {
   archived
 }
 
+enum EstadoReporte {
+  pendiente
+  revisado
+  descartado
+}
+
 // --- Usuarios (auth) --------------------------------------------------------
 
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
-  passwordHash  String
+  // Opcional: las cuentas que entran SOLO con Google no tienen contraseña.
+  // El login por contraseña rechaza cuentas sin passwordHash.
+  passwordHash  String?
   nombre        String
   role          UserRole
   emailVerified DateTime?
+  // Login con Google: `googleId` es el `sub` de Google (identifica la cuenta),
+  // `image` es la foto de perfil. Nullable: no todas las cuentas usan Google.
+  googleId      String?   @unique
+  image         String?
   createdAt     DateTime  @default(now())
 
   // Ciclo de vida de la cuenta.
@@ -70,6 +82,9 @@ model User {
   // - inactivityWarnedAt: evita reenviar el aviso de inactividad; se limpia al loguear.
   lastLoginAt        DateTime  @default(now())
   disabledAt         DateTime?
+  // true → la deshabilitación la hizo un admin (suspensión). El usuario NO puede
+  // reactivarse solo; solo un admin la levanta. false → baja propia (self-service).
+  disabledByAdmin    Boolean   @default(false)
   deletedAt          DateTime?
   inactivityWarnedAt DateTime?
 
@@ -151,6 +166,9 @@ model Professional {
   // Moderación
   estado         EstadoProfesional @default(pendiente)
   destacado      Boolean           @default(false)
+  // Momento de la PRIMera aprobación (se setea al pasar a "aprobado"). Sirve para
+  // medir el tiempo de moderación; `updatedAt` no sirve porque cambia con cualquier edición.
+  aprobadoAt     DateTime?
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
@@ -158,8 +176,28 @@ model Professional {
   candidatos MatchCandidate[]
   portfolio  PortfolioItem[]
   contacts   Contact[]
+  reports    Report[]
 
   @@index([estado])
+}
+
+// --- Reportes de contenido (moderación reactiva) ----------------------------
+// Cualquier usuario logueado puede reportar un perfil que le parezca inapropiado
+// o peligroso. El admin los revisa desde el backoffice. professionalId es
+// nullable + onDelete: SetNull para conservar el reporte si el perfil se borra.
+model Report {
+  id             String        @id @default(cuid())
+  professional   Professional? @relation(fields: [professionalId], references: [id], onDelete: SetNull)
+  professionalId String?
+  motivo         String
+  detalle        String?
+  reporterUserId String?
+  reporterIp     String?
+  estado         EstadoReporte @default(pendiente)
+  createdAt      DateTime      @default(now())
+
+  @@index([estado])
+  @@index([professionalId])
 }
 
 model PortfolioItem {
@@ -198,6 +236,7 @@ model Company {
   diagnoses Diagnosis[]
   matches   MatchRequest[]
   contacts  Contact[]
+  meetings  Meeting[]
 }
 
 model Contact {
@@ -250,6 +289,39 @@ model MatchRequest {
   candidatos MatchCandidate[]
 
   @@index([estado])
+}
+
+// --- Google Calendar (calendario compartido del estudio) --------------------
+// Singleton: una sola cuenta de Google del estudio conectada. `refreshToken`
+// va CIFRADO (AES-256-GCM, ver src/lib/crypto.ts).
+model GoogleCalendarConnection {
+  id            String   @id @default(cuid())
+  email         String
+  refreshToken  String
+  calendarId    String   @default("primary")
+  connectedById String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Sesión de consulta agendada (evento de Google Calendar con Meet).
+model Meeting {
+  id            String   @id @default(cuid())
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId     String
+  diagnosisId   String?
+  scheduledById String? // admin que la agendó
+  titulo        String
+  startsAt      DateTime
+  endsAt        DateTime
+  googleEventId String?
+  meetUrl       String?
+  htmlLink      String?
+  estado        String   @default("agendada") // agendada | cancelada
+  createdAt     DateTime @default(now())
+
+  @@index([startsAt])
+  @@index([companyId])
 }
 
 model MatchCandidate {

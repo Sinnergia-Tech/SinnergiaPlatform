@@ -74,6 +74,23 @@ Reglas de dominio vigentes. Si cambia el comportamiento, **actualizar acá**.
   logueado** (temporal — se reemplazará por otra acción). Se controla con el flag
   `showDiagnostico` desde `src/app/page.tsx`.
 
+### Diagnóstico = solicitud de sesión de consulta (flujo central)
+Es el corazón del producto: una empresa completa el formulario (`/diagnostico` o
+`addDiagnosisAction` si ya está logueada) para pedir una sesión con el equipo.
+Al crearse:
+- **Notifica a TODOS los admins por email** (`data.listAdminEmails()` → `notifyNewDiagnosis`
+  con `to: string[]`), con **todo el formulario** + link directo al detalle en el
+  backoffice. Cae a `ADMIN_EMAIL` si no hay admins. (Otros avisos internos —nueva
+  aplicación, digest de moderación— todavía van solo a `ADMIN_EMAIL`; se pueden
+  alinear igual con `listAdminEmails()`.)
+- **Se muestra como notificación en el backoffice**: banner en el dashboard y badge
+  en el sidebar (Empresas), contando diagnósticos con `estadoLead === "nuevo"`
+  (`data.countNewDiagnoses()`, contadores en `admin/layout.tsx`). Al gestionarlo
+  (cambiar el estado del lead) deja de contar como "nuevo".
+- **Se administra** desde `/admin/empresas/[id]` (form completo + estado del lead +
+  notas internas). El banner/badge linkea a `/admin/empresas?estado=nuevo` (la tabla
+  lee el filtro de la URL).
+
 ### Ciclo de vida de cuenta (`User`: `lastLoginAt`, `disabledAt`, `deletedAt`, `inactivityWarnedAt`)
 Cuatro ejes **independientes**, no mezclar:
 - **Moderación** (`Professional.estado`: pendiente/aprobado/rechazado/oculto) — la decide el admin.
@@ -103,6 +120,25 @@ reactivar. Una revocación real requeriría migrar a sesiones en DB.
 ### Contraseña
 - **Recuperar** (olvidé): `/recuperar-contrasena` → email → `/restablecer-contrasena`.
 - **Cambiar** (logueado, con la actual): bloque en `/cuenta` → `changePasswordAction`.
+
+### Seguridad de contenido cargado por usuarios (`src/lib/security.ts`)
+Todo contenido de usuario se valida **en el server** (nunca confiar en el cliente):
+- **Pin de imágenes** (`checkBlobImage`): una URL de imagen que se guarda como
+  `<img src>` (proyectos, galería, logo de empresa) debe ser de nuestro Vercel
+  Blob (`*.public.blob.vercel-storage.com`). Cierra la inyección de imágenes
+  externas vía requests crafteados a las server actions.
+- **Filtro de texto** (`checkText`): blocklist de términos prohibidos + límite de
+  links embebidos (anti-spam). Aplica a nombre/titular/descripción/proyectos.
+- **Chequeo de URLs** (`checkUrlSafe`): bloquea hosts privados/loopback y, si está
+  `GOOGLE_SAFE_BROWSING_API_KEY`, consulta Google Safe Browsing (malware/phishing).
+  Sin key → solo blocklist local. Fail-open ante error de red. Los esquemas
+  `javascript:`/`data:` ya los corta `normalizeExternalUrl` (`src/lib/url.ts`).
+- **Reportes** (`Report` + `/admin/reportes`): cualquier usuario logueado reporta
+  un perfil (motivo + detalle) desde `/red/[id]`; rate-limit + dedupe por usuario.
+  El admin los revisa/descarta en el backoffice (banner en el dashboard si hay
+  pendientes). Moderación **reactiva** — complementa la moderación de alta, que no
+  re-revisa el portfolio agregado después de aprobar. Requiere `npm run db:push`
+  (modelo nuevo `Report`).
 
 ### Indexación en buscadores (sitio en construcción)
 Indexación **APAGADA por defecto**: `noindex` global (`src/app/layout.tsx`) +

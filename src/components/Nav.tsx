@@ -2,17 +2,27 @@
 
 import { useEffect, useState } from "react";
 import { Container } from "./ui/Container";
-import { logoutAction } from "@/lib/auth-actions";
 
 export function Nav({
   account,
   showDiagnostico = true,
+  role,
 }: {
   account?: { nombre: string; href: string } | null;
   showDiagnostico?: boolean;
+  role?: string;
 }) {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+
+  // CTA principal: un admin va al dashboard; el resto (que corresponda) al
+  // formulario de diagnóstico.
+  const cta =
+    role === "admin"
+      ? { label: "Dashboard", href: "/admin" }
+      : showDiagnostico
+        ? { label: "Solicitar diagnóstico", href: "/diagnostico" }
+        : null;
 
   // "Red" requiere cuenta — no tiene sentido mostrarlo a un visitante sin
   // sesión (hoy redirige a /login). Si vuelve logueado, aparece.
@@ -72,25 +82,24 @@ export function Nav({
               {l.label}
             </a>
           ))}
+
+          {/* Separador entre las secciones de la landing y los accesos a la plataforma */}
+          <span
+            aria-hidden
+            className={`h-4 w-px transition-colors duration-500 ${
+              dark ? "bg-ink/20" : "bg-paper/30"
+            }`}
+          />
+
           {account ? (
-            <>
-              <a
-                href={account.href}
-                className={`link-underline text-sm transition-colors duration-500 ${
-                  dark ? "text-ink/80 hover:text-ink" : "text-paper/85 hover:text-paper"
-                }`}
-              >
-                Mi panel
-              </a>
-              <button
-                onClick={() => logoutAction()}
-                className={`text-sm transition-colors duration-500 ${
-                  dark ? "text-ink/50 hover:text-ink" : "text-paper/60 hover:text-paper"
-                }`}
-              >
-                Salir
-              </button>
-            </>
+            <a
+              href={account.href}
+              className={`link-underline text-sm transition-colors duration-500 ${
+                dark ? "text-ink/80 hover:text-ink" : "text-paper/85 hover:text-paper"
+              }`}
+            >
+              Mi panel
+            </a>
           ) : (
             <a
               href="/login"
@@ -101,16 +110,16 @@ export function Nav({
               Ingresar
             </a>
           )}
-          {showDiagnostico && (
+          {cta && (
             <a
-              href="/diagnostico"
+              href={cta.href}
               className={`px-5 py-2.5 text-xs font-medium uppercase tracking-[0.14em] transition-all duration-300 ${
                 dark
                   ? "bg-ink text-paper hover:bg-ink/85"
                   : "bg-paper text-ink hover:bg-paper/85"
               }`}
             >
-              Solicitar diagnóstico
+              {cta.label}
             </a>
           )}
         </nav>
@@ -156,21 +165,13 @@ export function Nav({
               </a>
             ))}
             {account ? (
-              <>
-                <a
-                  href={account.href}
-                  onClick={() => setOpen(false)}
-                  className="border-b border-ink/5 py-3 text-sm text-ink/80"
-                >
-                  Mi panel
-                </a>
-                <button
-                  onClick={() => logoutAction()}
-                  className="border-b border-ink/5 py-3 text-left text-sm text-ink/50"
-                >
-                  Salir
-                </button>
-              </>
+              <a
+                href={account.href}
+                onClick={() => setOpen(false)}
+                className="border-b border-ink/5 py-3 text-sm text-ink/80"
+              >
+                Mi panel
+              </a>
             ) : (
               <a
                 href="/login"
@@ -180,13 +181,13 @@ export function Nav({
                 Ingresar
               </a>
             )}
-            {showDiagnostico && (
+            {cta && (
               <a
-                href="/diagnostico"
+                href={cta.href}
                 onClick={() => setOpen(false)}
                 className="mt-4 bg-ink px-5 py-3 text-center text-xs font-medium uppercase tracking-[0.14em] text-paper"
               >
-                Solicitar diagnóstico
+                {cta.label}
               </a>
             )}
           </Container>

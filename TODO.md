@@ -11,6 +11,72 @@ Estado al 2026-07-03 (actualizado con la subida de fotos de perfil). Actualizar/
   las especialidades del perfil. El modal de proyecto ya existe
   (`src/components/directory/PortfolioProjects.tsx`) — solo faltaría el campo + selector.
 
+## 🟣 Sistema de Match — OCULTO de la versión live (a refinar a futuro)
+
+Decisión: el sistema de match (curado/rankeado por el admin) **se ocultó de la UI
+live** pero **el código queda intacto** para no perderlo. Hay que **refinarlo y
+definir cómo va a funcionar** más adelante (falta información del flujo futuro).
+
+**Qué se ocultó (UI):** link "Matches" del sidebar (desktop + mobile), card "Cola de
+matches" del dashboard, botón "Ver matches" del detalle de empresa, y las métricas de
+match en Analytics (se reemplazaron por "Sesiones agendadas"). El modelo actual de uso
+es **contacto directo empresa→freelancer** desde el directorio (`Contact`).
+
+**Qué quedó intacto (código, sin usar en live):** la ruta `/admin/matches` +
+`MatchesTable`, `src/lib/matching.ts` (motor), los modelos `MatchRequest`/
+`MatchCandidate`, y `data.getAnalyticsData` sigue calculando `empresas.matchesTotal` /
+`matchesPorEstado` / `demanda.roles` (candidatos) aunque no se muestren. La ruta sigue
+accesible por URL directa pero no está linkeada en ningún lado.
+
+**Cuando se retome:** definir el flujo (¿el admin arma matches?, ¿cómo se rankean?,
+¿cómo se conecta con el diagnóstico/consultoría?), reactivar el punto de entrada, y
+volver a mostrar/ajustar las métricas. Ver `matching-notes.md`.
+
+## 🟠 Performance en producción: co-locar Vercel con Supabase (IMPORTANTE)
+
+La base (Supabase) está en **`us-west-2` (Oregon, EE.UU.)**. Varias pantallas hacen
+varias consultas seguidas, y desde Argentina cada ida-y-vuelta a la base cuesta
+~150-250ms → suma y se siente lento. **No lo arregla pasar a prod por sí solo.**
+
+**Al desplegar en Vercel: elegir la región de las funciones en `us-west` (misma que
+Supabase)** para que el ida-y-vuelta app↔base baje a pocos ms. Así el usuario final
+tiene un solo salto (navegador → Vercel/CDN) y la app le "habla" a la base de al lado.
+- Vercel → Project → Settings → **Functions** (o `regions` en `vercel.json`) → región
+  us-west (Portland/`pdx1`), que matchea `us-west-2` de Supabase.
+- Regla: la app y la base tienen que estar en la MISMA región. Si algún día se mueve
+  una, mover la otra.
+- Nota: el modo `npm run dev` es lento por la compilación on-demand — NO representa la
+  performance real. Para medir de verdad: `npm run build && npm start`, o directo en
+  Vercel. Si tras co-locar alguna pantalla sigue pesada, recién ahí optimizar consultas.
+
+## 🟢 Login con Google — pendientes (dev listo, falta prod + onboarding)
+
+**Estado:** el login con Google para **cuentas existentes** ya está implementado y
+compila (`src/auth.ts` proveedor Google condicional + `signIn`/`jwt` callbacks;
+`data.linkGoogleAccount`; botón en `/login` gated por `NEXT_PUBLIC_GOOGLE_LOGIN`;
+schema `User.passwordHash` nullable + `googleId` + `image`, ya pusheado a Supabase).
+Proyecto en Google Cloud creado: **Sinnergia Platform** (`sinnergia-platform`),
+cliente OAuth **"Sinnergia Web"**, en modo **Prueba/Testing** con test users.
+
+**Pendiente 1 — Alta de usuarios NUEVOS vía Google (onboarding).** Hoy un email de
+Google sin cuenta se manda a `/crear-cuenta` (registro normal). Falta el flujo:
+entrar con Google → elegir freelancer/empresa → completar datos mínimos → crear la
+cuenta reutilizando `createProfessionalWithAccount`/`createCompanyAccount` (con
+`passwordHash` null, `emailVerified` seteado, `googleId`). **Próximo paso de código.**
+
+**Pendiente 2 — Checklist de PRODUCCIÓN (cuando salgamos a Vercel + dominio):**
+1. **Redirect URI de prod** en el cliente "Sinnergia Web" (Google Auth Platform →
+   Clientes → editar): agregar `https://TU-DOMINIO/api/auth/callback/google` (Vercel
+   y/o dominio propio). La de `localhost` se puede dejar.
+2. **Env vars en Vercel**: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
+   `NEXT_PUBLIC_GOOGLE_LOGIN="true"`, y `AUTH_URL`/`NEXTAUTH_URL` con la URL real.
+3. **Publicar la app** (Google Auth Platform → Público → "Publicar app"): pasa de
+   *Prueba* a *Producción*. Mientras esté en Prueba **solo los test users pueden
+   entrar con Google** — este paso es obligatorio para abrirlo al público.
+4. **Verificación de marca** (gratis, no se paga): política de privacidad (ya existe
+   `/privacidad`), verificar dominio en Google Search Console, logo + homepage.
+   Google revisa en días; mientras tanto funciona con el cartel de "app no verificada".
+
 ## 🔴 Bloqueante: falta configurar Vercel Blob para que la subida de fotos funcione
 
 **Contexto:** se implementó la subida real de foto de perfil (freelancer) y logo

@@ -12,7 +12,7 @@ import { getFreelancerData, getEmpresaData, countUnreadContacts } from "@/lib/da
 export const dynamic = "force-dynamic";
 
 export default async function CuentaPage() {
-  const { session, disabled } = await requireAccount();
+  const { session, disabled, disabledByAdmin } = await requireAccount();
 
   const { role, professionalId, companyId } = session.user;
   const nombre = session.user.name ?? "";
@@ -26,7 +26,7 @@ export default async function CuentaPage() {
         <AccountTopbar user={{ nombre, rol: role }} />
         <main className="py-10">
           <Container className="max-w-[560px]">
-            <ReactivateAccount />
+            <ReactivateAccount suspendedByAdmin={disabledByAdmin} />
           </Container>
         </main>
       </div>
