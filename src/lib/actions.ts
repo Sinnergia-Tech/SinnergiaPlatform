@@ -19,11 +19,20 @@ import {
   sendVerificationEmail,
   sendPasswordResetEmail,
   sendContactRequestEmail,
+  sendAdminMessage,
+  sendFeedbackPublished,
 } from "@/lib/email";
+import { FEEDBACK_CATEGORIAS } from "@/lib/types";
 import { hashPassword } from "@/lib/password";
 import { isPasswordValid, PASSWORD_HINT } from "@/lib/password-policy";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
-import { uploadProfilePhoto, InvalidPhotoError } from "@/lib/storage";
+import {
+  uploadProfilePhoto,
+  InvalidPhotoError,
+  uploadFeedbackFile,
+  InvalidFileError,
+  deleteBlobUrl,
+} from "@/lib/storage";
 import { PORTFOLIO_LIMITS } from "@/lib/portfolio-limits";
 import { normalizeExternalUrl } from "@/lib/url";
 import { checkBlobImage, checkText, checkUrlSafe } from "@/lib/security";
@@ -100,6 +109,29 @@ export async function saveProfessionalAction(
   revalidatePath("/admin/profesionales");
 }
 
+/**
+ * El admin le manda un mensaje por email a un freelancer (contacto supervisorio,
+ * NO el flujo transaccional de empresa→freelancer). La notificación es el mail.
+ */
+export async function adminMessageProfessionalAction(input: {
+  professionalId: string;
+  subject: string;
+  body: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  await requireAdmin();
+  const subject = input.subject.trim();
+  const body = input.body.trim();
+  if (!subject || !body) return { ok: false, error: "El asunto y el mensaje son obligatorios." };
+  if (subject.length > 150) return { ok: false, error: "El asunto no puede superar 150 caracteres." };
+  if (body.length > 3000) return { ok: false, error: "El mensaje no puede superar 3000 caracteres." };
+
+  const prof = await data.getProfessional(input.professionalId);
+  if (!prof) return { ok: false, error: "No se encontró el profesional." };
+
+  await sendAdminMessage({ to: prof.email, nombre: prof.nombre, subject, body });
+  return { ok: true };
+}
+
 /** Borra un proyecto de portfolio de cualquier profesional (moderación). */
 export async function adminDeletePortfolioItemAction(
   itemId: string
@@ -121,6 +153,151 @@ export async function adminRemovePortfolioImageAction(
   await data.adminRemovePortfolioImage(professionalId, url);
   revalidatePath(`/admin/profesionales/${professionalId}`);
   revalidatePath(`/red/${professionalId}`);
+  return { ok: true };
+}
+
+// --- Devoluciones / Feedback (admin) -----------------------------------------
+
+type FbResult = { ok: false; error: string } | { ok: true };
+
+function normalizeScore(v: number | null | undefined): number | null {
+  if (v === null || v === undefined) return null;
+  const n = Math.round(Number(v));
+  if (Number.isNaN(n) || n < 1 || n > 5) return null;
+  return n;
+}
+
+function cleanCategoria(v: string | undefined): string | null {
+  return v && (FEEDBACK_CATEGORIAS as readonly string[]).includes(v) ? v : null;
+}
+
+export async function createFeedbackAction(input: {
+  companyId: string;
+  diagnosisId?: string;
+  title: string;
+  descriptionMd: string;
+  score?: number | null;
+  fortalezasMd?: string;
+  mejorasMd?: string;
+  categoria?: string;
+}): Promise<{ ok: false; error: string } | { ok: true; id: string }> {
+  await requireAdmin();
+  const title = input.title.trim();
+  if (!title) return { ok: false, error: "El título es obligatorio." };
+  if (title.length > 200) return { ok: false, error: "El título no puede superar 200 caracteres." };
+
+  const session = await auth();
+  const fb = await data.createFeedback({
+    companyId: input.companyId,
+    diagnosisId: input.diagnosisId || null,
+    createdById: session?.user?.id ?? null,
+    title,
+    descriptionMd: input.descriptionMd.trim(),
+    score: normalizeScore(input.score),
+    fortalezasMd: input.fortalezasMd?.trim() || null,
+    mejorasMd: input.mejorasMd?.trim() || null,
+    categoria: cleanCategoria(input.categoria),
+  });
+  revalidatePath(`/admin/empresas/${input.companyId}`);
+  return { ok: true, id: fb.id };
+}
+
+export async function updateFeedbackAction(
+  feedbackId: string,
+  input: {
+    title: string;
+    descriptionMd: string;
+    score?: number | null;
+    fortalezasMd?: string;
+    mejorasMd?: string;
+    categoria?: string;
+  }
+): Promise<FbResult> {
+  await requireAdmin();
+  const fb = await data.getFeedback(feedbackId);
+  if (!fb) return { ok: false, error: "No se encontró la devolución." };
+  if (fb.status === "published") {
+    return { ok: false, error: "La devolución ya está publicada; no se puede editar." };
+  }
+  const title = input.title.trim();
+  if (!title) return { ok: false, error: "El título es obligatorio." };
+  await data.updateFeedback(feedbackId, {
+    title,
+    descriptionMd: input.descriptionMd.trim(),
+    score: normalizeScore(input.score),
+    fortalezasMd: input.fortalezasMd?.trim() || null,
+    mejorasMd: input.mejorasMd?.trim() || null,
+    categoria: cleanCategoria(input.categoria),
+  });
+  revalidatePath(`/admin/empresas/${fb.companyId}/devoluciones/${feedbackId}`);
+  revalidatePath(`/admin/empresas/${fb.companyId}`);
+  return { ok: true };
+}
+
+export async function publishFeedbackAction(feedbackId: string): Promise<FbResult> {
+  await requireAdmin();
+  const fb = await data.getFeedback(feedbackId);
+  if (!fb) return { ok: false, error: "No se encontró la devolución." };
+  if (fb.status === "published") return { ok: false, error: "Ya está publicada." };
+  if (!fb.title.trim() || !fb.descriptionMd.trim()) {
+    return { ok: false, error: "Completá título y descripción antes de publicar." };
+  }
+  await data.publishFeedback(feedbackId);
+  await sendFeedbackPublished({
+    to: fb.company.email,
+    nombre: fb.company.nombre,
+    title: fb.title,
+    url: `${SITE_URL}/cuenta/devoluciones/${feedbackId}`,
+  });
+  revalidatePath(`/admin/empresas/${fb.companyId}`);
+  revalidatePath(`/admin/empresas/${fb.companyId}/devoluciones/${feedbackId}`);
+  revalidatePath("/cuenta");
+  return { ok: true };
+}
+
+export async function deleteFeedbackAction(
+  feedbackId: string
+): Promise<{ ok: false; error: string } | { ok: true; companyId: string }> {
+  await requireAdmin();
+  const fb = await data.getFeedback(feedbackId);
+  if (!fb) return { ok: false, error: "No se encontró la devolución." };
+  for (const a of fb.attachments) await deleteBlobUrl(a.url);
+  await data.deleteFeedback(feedbackId);
+  revalidatePath(`/admin/empresas/${fb.companyId}`);
+  return { ok: true, companyId: fb.companyId };
+}
+
+export async function uploadFeedbackAttachmentAction(feedbackId: string, formData: FormData) {
+  await requireAdmin();
+  const fb = await data.getFeedback(feedbackId);
+  if (!fb) return { ok: false as const, error: "No se encontró la devolución." };
+  if (fb.status === "published") {
+    return { ok: false as const, error: "No se pueden agregar archivos a una devolución publicada." };
+  }
+  const file = formData.get("file");
+  if (!(file instanceof File)) {
+    return { ok: false as const, error: "No se recibió ningún archivo." };
+  }
+  try {
+    const up = await uploadFeedbackFile(file, `feedback/${feedbackId}`);
+    const att = await data.addFeedbackAttachment({ feedbackId, ...up });
+    revalidatePath(`/admin/empresas/${fb.companyId}/devoluciones/${feedbackId}`);
+    return {
+      ok: true as const,
+      attachment: { id: att.id, fileName: att.fileName, size: att.size, mimeType: att.mimeType },
+    };
+  } catch (e) {
+    if (e instanceof InvalidFileError) return { ok: false as const, error: e.message };
+    console.error("[feedback] upload:", e);
+    return { ok: false as const, error: "No se pudo subir el archivo. Probá de nuevo." };
+  }
+}
+
+export async function deleteFeedbackAttachmentAction(attachmentId: string): Promise<FbResult> {
+  await requireAdmin();
+  const att = await data.deleteFeedbackAttachment(attachmentId);
+  if (!att) return { ok: false, error: "No se encontró el archivo." };
+  await deleteBlobUrl(att.url);
   return { ok: true };
 }
 

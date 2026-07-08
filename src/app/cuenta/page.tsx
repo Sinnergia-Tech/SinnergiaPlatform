@@ -6,8 +6,14 @@ import { EmpresaPanel } from "@/components/account/EmpresaPanel";
 import { AccountSettings } from "@/components/account/AccountSettings";
 import { SocialLinksEditor } from "@/components/account/SocialLinksEditor";
 import { ReactivateAccount } from "@/components/account/ReactivateAccount";
+import { DevolucionesEmpresaList } from "@/components/account/DevolucionesEmpresaList";
 import { Container } from "@/components/ui/Container";
-import { getFreelancerData, getEmpresaData, countUnreadContacts } from "@/lib/data";
+import {
+  getFreelancerData,
+  getEmpresaData,
+  countUnreadContacts,
+  listPublishedFeedbacksForCompany,
+} from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +45,10 @@ export default async function CuentaPage() {
       : null;
   const empresaData =
     role === "empresa" && companyId ? await getEmpresaData(companyId) : null;
+  const empresaFeedbacks =
+    role === "empresa" && companyId
+      ? await listPublishedFeedbacksForCompany(companyId)
+      : [];
   const prof = freelancerData?.professional;
 
   const unreadContacts =
@@ -53,6 +63,19 @@ export default async function CuentaPage() {
         <Container className="max-w-[1000px] space-y-6">
           {freelancerData && <FreelancerPanel data={freelancerData} />}
           {empresaData && <EmpresaPanel company={empresaData} />}
+          {empresaData && (
+            <DevolucionesEmpresaList
+              feedbacks={empresaFeedbacks.map((f) => ({
+                id: f.id,
+                title: f.title,
+                score: f.score,
+                categoria: f.categoria,
+                publishedAt: (f.publishedAt ?? f.createdAt).toISOString(),
+                readAt: f.readAt?.toISOString() ?? null,
+                attachmentsCount: f._count.attachments,
+              }))}
+            />
+          )}
           {prof && (
             <SocialLinksEditor
               initial={{

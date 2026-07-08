@@ -4,6 +4,7 @@ import {
   listMeetingsForCompany,
   getCalendarConnection,
   getAccountByCompanyId,
+  listFeedbacksForCompany,
 } from "@/lib/data";
 import { EmpresaDetail } from "@/components/admin/EmpresaDetail";
 import { serializeAccount } from "@/lib/account-serialize";
@@ -19,10 +20,11 @@ export default async function EmpresaDetailPage({
   const company = await getCompanyWithDiagnosis(id);
   if (!company) notFound();
 
-  const [meetings, calConn, account] = await Promise.all([
+  const [meetings, calConn, account, feedbacks] = await Promise.all([
     listMeetingsForCompany(id),
     getCalendarConnection(),
     getAccountByCompanyId(id),
+    listFeedbacksForCompany(id),
   ]);
 
   return (
@@ -39,6 +41,16 @@ export default async function EmpresaDetailPage({
       }))}
       calendarConnected={!!calConn}
       account={serializeAccount(account)}
+      feedbacks={feedbacks.map((f) => ({
+        id: f.id,
+        title: f.title,
+        status: f.status,
+        score: f.score,
+        createdAt: f.createdAt.toISOString(),
+        publishedAt: f.publishedAt?.toISOString() ?? null,
+        readAt: f.readAt?.toISOString() ?? null,
+        attachmentsCount: f._count.attachments,
+      }))}
     />
   );
 }

@@ -3,6 +3,25 @@
 Estado al 2026-07-03 (actualizado con la subida de fotos de perfil). Actualizar/borrar
 ítems a medida que se resuelven.
 
+## 🟢 Devoluciones / Feedback a empresas — MVP hecho (fase 2 pendiente)
+
+**Hecho (MVP):** el admin genera devoluciones oficiales para una empresa desde el
+detalle de empresa (`/admin/empresas/[id]/devoluciones/[fid]`). Título + descripción
+Markdown + fortalezas + oportunidades de mejora + puntaje 1-5 + categoría + adjuntos
+(PDF/DOC/XLS/TXT/img en Vercel Blob, descarga **privada** vía `/api/feedback/
+attachment/[id]`). Borrador → Publicar (notifica por email + la empresa la ve en
+`/cuenta` y `/cuenta/devoluciones/[id]`, con confirmación de lectura `readAt`).
+Modelos `Feedback`/`FeedbackAttachment`. `react-markdown` + `remark-gfm`.
+
+**Fase 2 (diseñado para entrar aditivo, no implementado):**
+- Respuesta de la empresa + hilo de conversación → habilita estados extra
+  ("Requiere respuesta", "Cerrada") y "solicitar documentación adicional".
+- Observaciones estructuradas con prioridad (Alta/Media/Baja) + checklist de requisitos.
+- Historial de versiones de la devolución.
+- Fecha límite para responder/corregir.
+- Comentarios internos (solo admins).
+- Registro de auditoría completo (log de cada edición; hoy sólo `createdById`/`publishedAt`).
+
 ## 🟡 A futuro (a definir con stakeholders)
 
 - **Tags / "tipo de proyecto" en el modal de portfolio.** Cada proyecto podría

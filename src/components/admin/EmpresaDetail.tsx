@@ -51,16 +51,29 @@ function formatFecha(value: string | Date) {
   });
 }
 
+type FeedbackRow = {
+  id: string;
+  title: string;
+  status: "draft" | "published";
+  score: number | null;
+  createdAt: string;
+  publishedAt: string | null;
+  readAt: string | null;
+  attachmentsCount: number;
+};
+
 export function EmpresaDetail({
   company,
   meetings,
   calendarConnected,
   account,
+  feedbacks,
 }: {
   company: Company;
   meetings: MeetingRow[];
   calendarConnected: boolean;
   account: AccountInfo;
+  feedbacks: FeedbackRow[];
 }) {
   const diag = company.diagnoses[0];
   const [estadoLead, setEstadoLead] = useState<EstadoLead>(diag?.estadoLead ?? "nuevo");
@@ -177,6 +190,59 @@ export function EmpresaDetail({
           meetings={meetings}
           calendarConnected={calendarConnected}
         />
+      </div>
+
+      <div className="mt-4">
+        <Card className="p-6">
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <h2 className="text-sm font-medium uppercase tracking-[0.12em] text-ink/50">
+              Devoluciones
+            </h2>
+            <Link
+              href={`/admin/empresas/${company.id}/devoluciones/nueva`}
+              className="border border-ink px-4 py-2 text-xs font-medium uppercase tracking-[0.1em] text-ink transition-colors hover:bg-ink hover:text-paper"
+            >
+              Nueva devolución
+            </Link>
+          </div>
+          {feedbacks.length === 0 ? (
+            <p className="text-sm text-ink/45">Todavía no generaste ninguna devolución para esta empresa.</p>
+          ) : (
+            <ul className="space-y-2">
+              {feedbacks.map((f) => (
+                <li key={f.id}>
+                  <Link
+                    href={`/admin/empresas/${company.id}/devoluciones/${f.id}`}
+                    className="flex flex-wrap items-center justify-between gap-3 border border-ink/10 px-4 py-3 transition-colors hover:bg-smoke/60"
+                  >
+                    <div>
+                      <div className="font-medium">{f.title}</div>
+                      <div className="mt-0.5 text-xs text-ink/50">
+                        {formatFecha(f.publishedAt ?? f.createdAt)}
+                        {f.attachmentsCount > 0 && ` · ${f.attachmentsCount} archivo(s)`}
+                        {f.score !== null && ` · ${f.score}/5`}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {f.status === "published" ? (
+                        <>
+                          <Badge variant="solid">Publicada</Badge>
+                          {f.readAt ? (
+                            <span className="text-xs text-ink/45">Leída</span>
+                          ) : (
+                            <span className="text-xs text-ink/45">Sin leer</span>
+                          )}
+                        </>
+                      ) : (
+                        <Badge variant="outline">Borrador</Badge>
+                      )}
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
       </div>
 
       <div className="mt-4">

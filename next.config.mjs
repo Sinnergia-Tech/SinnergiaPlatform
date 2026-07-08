@@ -28,7 +28,7 @@ const nextConfig = {
   // Default de Next es 1mb — hace falta más para subir fotos de perfil
   // (el límite real de tamaño de archivo se valida en src/lib/storage.ts).
   experimental: {
-    serverActions: { bodySizeLimit: "5mb" },
+    serverActions: { bodySizeLimit: "12mb" },
   },
   async headers() {
     return [

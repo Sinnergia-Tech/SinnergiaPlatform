@@ -56,6 +56,11 @@ enum EstadoReporte {
   descartado
 }
 
+enum FeedbackStatus {
+  draft
+  published
+}
+
 // --- Usuarios (auth) --------------------------------------------------------
 
 model User {
@@ -237,6 +242,7 @@ model Company {
   matches   MatchRequest[]
   contacts  Contact[]
   meetings  Meeting[]
+  feedbacks Feedback[]
 }
 
 model Contact {
@@ -289,6 +295,48 @@ model MatchRequest {
   candidatos MatchCandidate[]
 
   @@index([estado])
+}
+
+// --- Devoluciones / Feedback a empresas -------------------------------------
+// El estudio (admin) genera una devolución oficial para una empresa tras la
+// sesión de consulta. `descriptionMd`/`fortalezasMd`/`mejorasMd` son Markdown.
+// Los adjuntos se guardan en Vercel Blob; se descargan por una ruta autenticada
+// (no se expone la URL del blob directamente).
+model Feedback {
+  id            String         @id @default(cuid())
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId     String
+  diagnosisId   String? // diagnóstico que responde (opcional)
+  createdById   String? // admin que la creó
+  title         String
+  descriptionMd String
+  score         Int? // puntaje general 1-5 (opcional)
+  fortalezasMd  String?
+  mejorasMd     String?
+  categoria     String? // Legal | Técnica | Comercial | UX | Documentación | General
+  status        FeedbackStatus @default(draft)
+  publishedAt   DateTime?
+  readAt        DateTime? // cuándo la empresa la abrió por primera vez
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  attachments FeedbackAttachment[]
+
+  @@index([companyId])
+  @@index([status])
+}
+
+model FeedbackAttachment {
+  id         String   @id @default(cuid())
+  feedback   Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  feedbackId String
+  fileName   String
+  url        String // URL de Vercel Blob (no se expone directo al cliente)
+  mimeType   String
+  size       Int
+  createdAt  DateTime @default(now())
+
+  @@index([feedbackId])
 }
 
 // --- Google Calendar (calendario compartido del estudio) --------------------

@@ -9,6 +9,7 @@ import { ClickableImage } from "@/components/ui/ImageLightbox";
 import { PortfolioProjects } from "@/components/directory/PortfolioProjects";
 import { SocialIcons } from "@/components/directory/SocialIcons";
 import { ReportProfileButton } from "@/components/directory/ReportProfileButton";
+import { AdminMessageButton } from "@/components/directory/AdminMessageButton";
 import {
   getApprovedProfessional,
   getProfessionalWithPortfolio,
@@ -113,6 +114,11 @@ export default async function PerfilPage({
                   Contactar
                 </button>
                 <p className="mt-1.5 text-xs text-ink/40">Así lo ve una empresa</p>
+              </div>
+            )}
+            {session.user.role === "admin" && (
+              <div className="shrink-0 text-right">
+                <AdminMessageButton professionalId={p.id} nombre={p.nombre} />
               </div>
             )}
           </div>

@@ -8,6 +8,7 @@ const items = [
   { label: "Dashboard", href: "/admin" },
   { label: "Empresas", href: "/admin/empresas" },
   { label: "Profesionales", href: "/admin/profesionales" },
+  { label: "Usuarios", href: "/admin/usuarios" },
   { label: "Contactos", href: "/admin/contactos" },
   { label: "Calendario", href: "/admin/calendario" },
   { label: "Reportes", href: "/admin/reportes" },
@@ -79,6 +80,21 @@ export function Sidebar({ badges = {} }: { badges?: Record<string, number> }) {
             </Link>
           );
         })}
+
+        {/* Separador: abajo, la red compartida (misma vista que ven empresas y
+            freelancers) — para inspeccionar la plataforma, no para operar. */}
+        <div className="my-4 border-t border-ink/10" />
+        <div className="mb-2 px-3 text-[0.65rem] uppercase tracking-[0.16em] text-ink/35">
+          Plataforma
+        </div>
+        <Link
+          href="/red"
+          className="mb-1 flex items-center gap-3 rounded-sm px-3 py-2.5 text-sm text-ink/70 transition-colors hover:bg-smoke hover:text-ink"
+        >
+          <span className="h-1.5 w-1.5 rounded-full bg-ink/25" />
+          <span className="flex-1">Red</span>
+          <span className="text-ink/30">↗</span>
+        </Link>
       </nav>
 
       {/* User */}
@@ -124,6 +140,7 @@ export function AdminMobileBar({ badges = {} }: { badges?: Record<string, number
           Emp.{dot("/admin/empresas")}
         </Link>
         <Link href="/admin/profesionales">Prof.</Link>
+        <Link href="/admin/usuarios">Users</Link>
         <Link href="/admin/contactos">Cont.</Link>
         <Link href="/admin/calendario">Cal.</Link>
         <Link href="/admin/reportes">

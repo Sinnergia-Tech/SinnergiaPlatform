@@ -36,6 +36,20 @@ export type EstadoMatch = "solicitado" | "en_gestion" | "cerrado" | "descartado"
 /** Estado de un reporte de contenido en el backoffice. */
 export type EstadoReporte = "pendiente" | "revisado" | "descartado";
 
+/** Estado de una devolución (feedback a empresa). */
+export type FeedbackStatus = "draft" | "published";
+
+/** Categorías de una devolución (controladas por código). */
+export const FEEDBACK_CATEGORIAS = [
+  "General",
+  "Legal",
+  "Técnica",
+  "Comercial",
+  "UX",
+  "Documentación",
+] as const;
+export type FeedbackCategoria = (typeof FEEDBACK_CATEGORIAS)[number];
+
 /** Motivos válidos de un reporte (controlados por código). */
 export const REPORTE_MOTIVOS = [
   "Contenido inapropiado u ofensivo",

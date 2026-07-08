@@ -30,6 +30,8 @@ export function AccountTopbar({
     logoutAction();
   };
 
+  const isAdmin = user.rol === "admin";
+
   return (
     <header className="border-b border-ink/10 bg-paper">
       <Container className="flex h-[68px] items-center justify-between gap-6">
@@ -45,22 +47,30 @@ export function AccountTopbar({
           </span>
         </a>
 
-        {/* Navegación (igual que la landing) */}
+        {/* Navegación. Un admin está acá sólo inspeccionando la red: no tiene
+            "Mi cuenta" ni "Mis contactos" (son de usuario) — le mostramos el
+            regreso al backoffice. */}
         <nav className="hidden items-center gap-6 lg:flex">
-          {links.map((l) => (
-            <a
-              key={l.href}
-              href={l.href}
-              className="link-underline relative text-sm text-ink/70 hover:text-ink"
-            >
-              {l.label}
-              {l.href === "/cuenta/contactos" && unreadContacts > 0 && (
-                <span className="absolute -right-3 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-ink px-1 text-[0.6rem] font-semibold text-paper">
-                  {unreadContacts}
-                </span>
-              )}
+          {isAdmin ? (
+            <a href="/admin" className="link-underline text-sm text-ink/70 hover:text-ink">
+              ← Volver al backoffice
             </a>
-          ))}
+          ) : (
+            links.map((l) => (
+              <a
+                key={l.href}
+                href={l.href}
+                className="link-underline relative text-sm text-ink/70 hover:text-ink"
+              >
+                {l.label}
+                {l.href === "/cuenta/contactos" && unreadContacts > 0 && (
+                  <span className="absolute -right-3 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-ink px-1 text-[0.6rem] font-semibold text-paper">
+                    {unreadContacts}
+                  </span>
+                )}
+              </a>
+            ))
+          )}
         </nav>
 
         <div className="flex shrink-0 items-center gap-4">

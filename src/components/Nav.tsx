@@ -91,16 +91,7 @@ export function Nav({
             }`}
           />
 
-          {account ? (
-            <a
-              href={account.href}
-              className={`link-underline text-sm transition-colors duration-500 ${
-                dark ? "text-ink/80 hover:text-ink" : "text-paper/85 hover:text-paper"
-              }`}
-            >
-              Mi panel
-            </a>
-          ) : (
+          {!account ? (
             <a
               href="/login"
               className={`link-underline text-sm transition-colors duration-500 ${
@@ -109,7 +100,17 @@ export function Nav({
             >
               Ingresar
             </a>
-          )}
+          ) : role !== "admin" ? (
+            // Un admin ya tiene el botón "Dashboard" — no repetimos "Mi panel".
+            <a
+              href={account.href}
+              className={`link-underline text-sm transition-colors duration-500 ${
+                dark ? "text-ink/80 hover:text-ink" : "text-paper/85 hover:text-paper"
+              }`}
+            >
+              Mi panel
+            </a>
+          ) : null}
           {cta && (
             <a
               href={cta.href}
@@ -164,15 +165,7 @@ export function Nav({
                 {l.label}
               </a>
             ))}
-            {account ? (
-              <a
-                href={account.href}
-                onClick={() => setOpen(false)}
-                className="border-b border-ink/5 py-3 text-sm text-ink/80"
-              >
-                Mi panel
-              </a>
-            ) : (
+            {!account ? (
               <a
                 href="/login"
                 onClick={() => setOpen(false)}
@@ -180,7 +173,15 @@ export function Nav({
               >
                 Ingresar
               </a>
-            )}
+            ) : role !== "admin" ? (
+              <a
+                href={account.href}
+                onClick={() => setOpen(false)}
+                className="border-b border-ink/5 py-3 text-sm text-ink/80"
+              >
+                Mi panel
+              </a>
+            ) : null}
             {cta && (
               <a
                 href={cta.href}

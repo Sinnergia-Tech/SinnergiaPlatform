@@ -53,6 +53,15 @@ export function getUserAccount(userId: string) {
   return prisma.user.findUnique({ where: { id: userId }, select: ACCOUNT_SELECT });
 }
 
+/** Todas las cuentas de usuarios (freelancers + empresas) para la vista unificada. */
+export function listAccounts() {
+  return prisma.user.findMany({
+    where: { role: { not: "admin" } },
+    orderBy: { createdAt: "desc" },
+    select: ACCOUNT_SELECT,
+  });
+}
+
 export function getAccountByProfessionalId(professionalId: string) {
   return prisma.user.findFirst({ where: { professionalId }, select: ACCOUNT_SELECT });
 }
@@ -628,6 +637,115 @@ export function getMeeting(id: string) {
 
 export function markMeetingCancelled(id: string) {
   return prisma.meeting.update({ where: { id }, data: { estado: "cancelada" } });
+}
+
+// --- Devoluciones / Feedback -------------------------------------------------
+
+export function createFeedback(input: {
+  companyId: string;
+  diagnosisId?: string | null;
+  createdById?: string | null;
+  title: string;
+  descriptionMd: string;
+  score?: number | null;
+  fortalezasMd?: string | null;
+  mejorasMd?: string | null;
+  categoria?: string | null;
+}) {
+  return prisma.feedback.create({ data: input });
+}
+
+export function updateFeedback(
+  id: string,
+  fields: {
+    title?: string;
+    descriptionMd?: string;
+    score?: number | null;
+    fortalezasMd?: string | null;
+    mejorasMd?: string | null;
+    categoria?: string | null;
+  }
+) {
+  return prisma.feedback.update({ where: { id }, data: fields });
+}
+
+export function getFeedback(id: string) {
+  return prisma.feedback.findUnique({
+    where: { id },
+    include: {
+      attachments: { orderBy: { createdAt: "asc" } },
+      company: { select: { id: true, nombre: true, email: true } },
+    },
+  });
+}
+
+/** Todas las devoluciones de una empresa (vista admin). */
+export function listFeedbacksForCompany(companyId: string) {
+  return prisma.feedback.findMany({
+    where: { companyId },
+    orderBy: [{ createdAt: "desc" }],
+    include: { _count: { select: { attachments: true } } },
+  });
+}
+
+/** Solo las publicadas (vista de la empresa). */
+export function listPublishedFeedbacksForCompany(companyId: string) {
+  return prisma.feedback.findMany({
+    where: { companyId, status: "published" },
+    orderBy: [{ publishedAt: "desc" }],
+    include: { _count: { select: { attachments: true } } },
+  });
+}
+
+export function countUnreadFeedbacksForCompany(companyId: string) {
+  return prisma.feedback.count({
+    where: { companyId, status: "published", readAt: null },
+  });
+}
+
+export function publishFeedback(id: string) {
+  return prisma.feedback.update({
+    where: { id },
+    data: { status: "published", publishedAt: new Date() },
+  });
+}
+
+export function deleteFeedback(id: string) {
+  return prisma.feedback.delete({ where: { id } });
+}
+
+export async function markFeedbackRead(id: string) {
+  const fb = await prisma.feedback.findUnique({ where: { id }, select: { readAt: true } });
+  if (fb && !fb.readAt) {
+    await prisma.feedback.update({ where: { id }, data: { readAt: new Date() } });
+  }
+}
+
+export function addFeedbackAttachment(input: {
+  feedbackId: string;
+  fileName: string;
+  url: string;
+  mimeType: string;
+  size: number;
+}) {
+  return prisma.feedbackAttachment.create({ data: input });
+}
+
+export function getFeedbackAttachment(id: string) {
+  return prisma.feedbackAttachment.findUnique({
+    where: { id },
+    include: { feedback: { select: { companyId: true, status: true } } },
+  });
+}
+
+export async function deleteFeedbackAttachment(id: string) {
+  const att = await prisma.feedbackAttachment.findUnique({
+    where: { id },
+    select: { id: true, url: true, feedbackId: true },
+  });
+  if (!att) return null;
+  await prisma.feedbackAttachment.delete({ where: { id } });
+  return att;
 }
 
 // --- Reportes de contenido ---------------------------------------------------

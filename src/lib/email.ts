@@ -177,6 +177,48 @@ export async function notifyNewDiagnosis(p: {
   });
 }
 
+/**
+ * Mensaje directo del equipo (admin) a un usuario de la plataforma. Supervisión/
+ * operación — no es el flujo transaccional empresa→freelancer. El cuerpo lo
+ * escribe el admin y se escapa antes de mandarlo.
+ */
+export async function sendAdminMessage(p: {
+  to: string;
+  nombre: string;
+  subject: string;
+  body: string;
+}) {
+  await send({
+    to: p.to,
+    subject: p.subject,
+    html: tpl(
+      `Hola, ${escapeHtml(p.nombre.split(" ")[0])}`,
+      `<div style="white-space:pre-line;">${escapeHtml(p.body)}</div>
+       <p style="color:#9a9a97;margin-top:20px;">Te escribe el equipo de Sinnergia Studio.
+       Podés responder a este mail.</p>`
+    ),
+  });
+}
+
+/** Aviso a la empresa de que se publicó una devolución. */
+export async function sendFeedbackPublished(p: {
+  to: string;
+  nombre: string;
+  title: string;
+  url: string;
+}) {
+  await send({
+    to: p.to,
+    subject: `Nueva devolución de Sinnergia: ${p.title}`,
+    html: tpl(
+      "Tenés una nueva devolución",
+      `<p>El equipo de Sinnergia publicó una devolución para tu empresa:
+       <strong>${escapeHtml(p.title)}</strong>.</p>
+       <p><a href="${p.url}" style="color:#000;">Ver la devolución →</a></p>`
+    ),
+  });
+}
+
 export async function sendDiagnosisConfirmation(c: {
   nombre: string;
   email: string;

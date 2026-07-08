@@ -1,7 +1,9 @@
 import { put, del } from "@vercel/blob";
 import { checkImageFile } from "@/lib/image-constraints";
+import { checkFeedbackFile } from "@/lib/feedback-files";
 
 export class InvalidPhotoError extends Error {}
+export class InvalidFileError extends Error {}
 
 function validate(file: File) {
   const err = checkImageFile(file);
@@ -32,4 +34,33 @@ export async function uploadProfilePhoto(
   }
 
   return url;
+}
+
+/**
+ * Sube un adjunto de una devolución. El blob es "público" pero con nombre
+ * inadivinable (addRandomSuffix) y su URL NO se expone al cliente: la descarga
+ * pasa por una ruta autenticada (/api/feedback/attachment/[id]).
+ */
+export async function uploadFeedbackFile(file: File, pathPrefix: string) {
+  const err = checkFeedbackFile(file);
+  if (err) throw new InvalidFileError(err);
+
+  const safeName = (file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80) || "archivo");
+  const { url } = await put(`${pathPrefix}/${safeName}`, file, {
+    access: "public",
+    addRandomSuffix: true,
+  });
+  return {
+    url,
+    fileName: file.name,
+    mimeType: file.type || "application/octet-stream",
+    size: file.size,
+  };
+}
+
+/** Borra un blob por su URL (best-effort). */
+export async function deleteBlobUrl(url: string) {
+  if (url.includes(".public.blob.vercel-storage.com")) {
+    await del(url).catch(() => {});
+  }
 }
